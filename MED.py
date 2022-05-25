@@ -168,9 +168,106 @@ class Window(QMainWindow):
         #         m += 2
         # # self.data_ls['Main'].setLayout(self.datalay)
 
+class Calendar(QCalendarWidget):
+    def __init__(self):
+        super().__init__()
+        self.less = 5
+        self.startdate = None
+        self.endate = none
+
+    def paintCell(self, painter, rect, date):
+        super(Calendar, self).paintCell(painter, rect, date)
+
+        # checking if date is selected date
+        if date == self.selectedDate():
+            # saving the painter
+            painter.save()
+
+            # creating a QFont object
+            font = QFont()
+
+            # setting pixel size of the font
+            font.setPixelSize(11)
+
+            # making font bold
+            font.setBold(True)
+
+            # making font italic
+            font.setItalic(True)
+
+            # setting font to the painter
+            painter.setFont(font)
+
+            # drawing text
+            painter.drawText(
+                rect.topLeft() + QPoint(10, 10),
+                "{}".format("Geek"),
+            )
+
+            # restoring the painter
+            painter.restore()
+    # method for components
+    def UiComponents(self):
+        # creating a QCalendarWidget object
+        # as Calendar class inherits QCalendarWidget
+        self.calendar = Calendar(self)
+
+        # setting cursor
+        self.calendar.setCursor(Qt.PointingHandCursor)
+
+        # setting size of the calendar
+        self.calendar.resize(350, 240)
+
+        # setting font to the calendar
+        self.calendar.setFont(QFont('Times', 5))
+
+        # move the calendar
+        self.calendar.move(10, 10)
+        # lower bound date
+        l_date = QDate(2020, 6, 5)
+
+        # upper bound date
+        u_date = QDate(2020, 6, 15)
+
+        # setting date range
+        calendar.setDateRange(l_date, u_date)
+
+
+        grid
+
+    def update_date(self,date):  # todo main window
+        self.date_range.append(date)
+        self.date_range.sort()
+        if self.selectionMode() == 'Range':
+            for i in range(len(self.date_wig)):
+                self.date_wig[i] = self.date_range[i] # widgits froom list
+            self.setDateRange(*self.date_range)
+
+        else:
+            for i in range(len(self.date_wig)):
+                self.date_wig[i].setClickable(False) # widgits froom list
+
+    def set_d(self):
+
+        for dat in self.date_range:
+            self.docs[self.active_doc][self.condition].append(dat)  # todo remove option, order to store
+        if self.active_doc:
+            pass
+        else:
+            print('select doctor')
+
+
+
+    def set_start_day(self,d):
+        self.firstDayOfWeek()
+
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     win = Window()
     win.show()
     sys.exit(app.exec_())
+"""
+
+}"""
