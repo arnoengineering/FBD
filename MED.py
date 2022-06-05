@@ -1,49 +1,16 @@
-# import sympy as sy
-from PyQt5.QtGui import QPainter, QPen, QFont, QBrush, QTextCharFormat, QPolygon, QPalette
-from numpy import cos, sin, arctan, sqrt, pi, linspace, arange
-# import os
-from PyQt5 import QtCore
-from PyQt5.QtCore import Qt, QTimer, QSize, QDate, QPoint, QCalendar, QSettings  # , QPointF, QPoint
-import pandas as pd
-import pyqtgraph as pg
-import numpy as np
-
-# from numpy.linalg import norm
-
+from PyQt5.QtGui import QFont, QTextCharFormat, QPalette  # QPainter, QPen,QBrush,
+from PyQt5.QtCore import Qt, QDate, QSettings  # QTimer, QSize,
 
 from PyQt5.QtWidgets import *
-from functools import partial
-from medgoogle import SchedualOptomizer
+
+import pandas as pd
+import numpy as np
 import sys
 
-# todo save, read from list
-
-patient_time = {'claassens': 30, 'dehlen': 20, 'lategan': 15}
-# todo add stats, here vs away for each doc, and for group and anitetist, surgion
-# todo table view, only one call per day
-call_list = {}
-
-walk_in_list = {}
-"""test for demend can put weeends diff, then check for no call on weekends"""
+from functools import partial
+from medgoogle import SchedualOptomizer
 
 
-#
-# def doc_behind(doc):
-#     td = patient_time[doc] * docs_list[doc]['patients behind']
-#     si = '-' if td < 0 else '+'  # todo hour format
-#     docs_list[doc]['ontime delta'] = f't {si} {abs(td)}'
-
-
-#
-# def walk_in(date):
-#     if weekday(date) <=1: # sunday or monday
-#         n_d = date-1
-#     else:
-#         n_d = date
-#     walk_in_list[date-1] = call_list[n_d]
-
-
-# minimize cost where call = 1-n, and call != people away
 def sort_day(ls):
     ls.sort(key=lambda x: x.toString(Qt.TextDate))
 
@@ -160,7 +127,8 @@ class Window(QMainWindow):
         self.table_tool = QToolBar('Tables')
         self.font_wig = {}
         # view set by status
-        tb_op = ['save', 'load', 'add', ]  # todo add remember size pos,
+        tb_op = ['save', 'load', 'add', 'font color', 'bold','it', 'underline', 'titlecase drop']
+        # todo add remember size pos,
 
         for i in ['Call', 'WI']:  # todo lable and vert
             j = QLabel(i+' font')
@@ -197,8 +165,6 @@ class Window(QMainWindow):
         self.cap_doc = 'upper'  # upper, lower sentance, titile, check for de, mc, mac,van,von
         self.font_wi = 'Times'
         self.cap_wi = 'title'
-
-        # todo apply vs save
 
     def _set_center(self):
         self.cen = DocStatus(self)  # for docter clinic
@@ -302,68 +268,6 @@ class Window(QMainWindow):
         event.accept()
 
 
-class CalendarDayDelegate(QItemDelegate):
-    def __init__(self, parent=None, projects=None, par=None):
-        super(CalendarDayDelegate, self).__init__(parent=parent)
-
-        self.projects = projects
-        self.par = par
-        self.last_month = True
-
-        self.call_font = QFont()
-        self.call_font.setPixelSize(11)
-        self.call_font.setBold(True)
-
-        self.wi_font = QFont()
-        self.wi_font.setPixelSize(9)  # todo set color
-        self.wi_font.setItalic(True)
-
-    def paint(self, painter, option, index):
-
-        painter._date_flag = index.row() > 0
-        super(CalendarDayDelegate, self).paint(painter, option, index)
-
-        if painter._date_flag:
-
-            date_num_full = index.data()  # todo is index correct
-            index_loc = (index.row(), index.column())
-            year = self.par.yearShown()
-            month = self.par.monthShown()
-            if date_num_full > 7 and index_loc[0] == 1:
-                if month == 1:
-                    year -= 1
-                    month = 12
-                else:
-                    month -= 1
-            elif date_num_full < 15 and index_loc[0] > 4:
-                if month == 12:
-                    year += 1
-                    month = 1
-                else:
-                    month += 1
-
-            date = QDate(year, month, date_num_full)
-
-            if date in list(self.par.par.schedul['Date']):
-                doc, doc_wi = self.par.par.doc_on_day(date)
-
-                rect = option.rect  # todo caps
-                painter.save()
-
-                painter.setFont(self.call_font)
-                painter.drawText(rect, Qt.AlignCenter | Qt.AlignVCenter, doc)
-
-                painter.setFont(self.wi_font)
-                painter.drawText(rect, Qt.AlignRight | Qt.AlignBottom, doc_wi)
-
-                painter.restore()
-
-    def drawDisplay(self, painter, option, rect, text):
-        if painter._date_flag:
-            option.displayAlignment = Qt.AlignTop | Qt.AlignLeft
-        super(CalendarDayDelegate, self).drawDisplay(painter, option, rect, text)
-
-
 class Calendar(QCalendarWidget):
     def __init__(self, par):
         super().__init__()
@@ -425,7 +329,7 @@ class Calendar(QCalendarWidget):
             else:
                 self.full_date_list = date_v_l
 
-        if self.sel == 'Range':  # todo only onr list only one time
+        if self.sel == 'Range':
             self.update_date(date)
         else:
             self.print_selected(QTextCharFormat())
@@ -473,22 +377,30 @@ class Calendar(QCalendarWidget):
 
     def set_d(self):
         for dat in self.full_date_list:
-            self.docs[self.active_doc][self.condition].append(dat)  # todo remove option, order to store
+            self.docs[self.active_doc][self.condition].append(dat)
 
 
 class DocStatus(QTableWidget):  # self.doc_dataframe_items
-    def __init__(self, par):
+    def __init__(self, par,ti='Clinic', pos=Qt.RightDockWidgetArea):
         super().__init__()
+        self.ti = ti
         self.sort_ascend = True
         self.sort_col = 'Name'
         self.par = par
+        self.pos = pos
         #
         self.horizontalHeader().sectionClicked.connect(self.sort_by)
         # self.itemClicked.connect(self.sort_par)
         self.cellClicked.connect(self.tab_s)
         self.cellDoubleClicked.connect(self.set_popup)
         self.dia = None
+        self._init_dock()
         self.reset_table()
+
+    def _init_doc(self):
+        self.dock = QDockWidget(self.ti)
+        self.dock.setWidget(self)
+        self.par.addDockWidget(self.dock)
 
     def handle_sum(self,x,ty):
         ave_x = np.mean(x)
@@ -618,6 +530,69 @@ class docPopup(QDialog):
     def rej(self):
         print('reject')
         self.reject()
+
+
+class CalendarDayDelegate(QItemDelegate):
+    def __init__(self, parent=None, projects=None, par=None):
+        super(CalendarDayDelegate, self).__init__(parent=parent)
+
+        self.projects = projects
+        self.par = par
+        self.last_month = True
+
+        self.call_font = QFont()
+        self.call_font.setPixelSize(11)
+        self.call_font.setBold(True)
+
+        self.wi_font = QFont()
+        self.wi_font.setPixelSize(9)  # todo set color
+        self.wi_font.setItalic(True)
+
+    def paint(self, painter, option, index):
+
+        painter._date_flag = index.row() > 0
+        super(CalendarDayDelegate, self).paint(painter, option, index)
+
+        if painter._date_flag:
+
+            date_num_full = index.data()  # todo is index correct
+            index_loc = (index.row(), index.column())
+            year = self.par.yearShown()
+            month = self.par.monthShown()
+            if date_num_full > 7 and index_loc[0] == 1:
+                if month == 1:
+                    year -= 1
+                    month = 12
+                else:
+                    month -= 1
+            elif date_num_full < 15 and index_loc[0] > 4:
+                if month == 12:
+                    year += 1
+                    month = 1
+                else:
+                    month += 1
+
+            date = QDate(year, month, date_num_full)
+
+            if date in list(self.par.par.schedul['Date']):
+                doc, doc_wi = self.par.par.doc_on_day(date)
+
+                rect = option.rect  # todo caps
+                painter.save()
+
+                painter.setFont(self.call_font)
+                painter.drawText(rect, Qt.AlignCenter | Qt.AlignVCenter, doc)
+
+                painter.setFont(self.wi_font)
+                painter.drawText(rect, Qt.AlignRight | Qt.AlignBottom, doc_wi)
+
+                painter.restore()
+
+    def drawDisplay(self, painter, option, rect, text):
+        if painter._date_flag:
+            option.displayAlignment = Qt.AlignTop | Qt.AlignLeft
+        super(CalendarDayDelegate, self).drawDisplay(painter, option, rect, text)
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
