@@ -30,6 +30,8 @@ class Window(QMainWindow):
         self._set_clinic()
         self._create_tools()
 
+        self._creat_toolbar()
+
     def _set_list(self):
         self.docs = [{'Name': 'Dehlen', 'status': 'away', 'ontime delta': '-', 'patients behind': 0},
                      {'Name': 'lategan', 'status': 'here', 'ontime delta': 't+30', 'patients behind': 2}]
@@ -45,6 +47,7 @@ class Window(QMainWindow):
 
     def _set_empty(self):
         self.set_mode = None
+        self.active_col = Qt.black
         self.active_doc = self.docs[0]['Name']
         self.date_list = {}
         self.av = {}
@@ -121,35 +124,50 @@ class Window(QMainWindow):
 
     def _creat_toolbar(self):
         self.font_sizes = [7, 8, 9, 10, 11, 12, 13, 14, 18, 24, 36, 48, 64, 72, 96, 144, 288]
-        self.img_loc = self.file_loc + '/img/'
+        # self.img_loc = self.file_loc + '/img/'
         self.tool_bar = QToolBar('Main toolbar')
         self.cal_tool_bar = QToolBar('Calendar')  # todo add swap
         self.table_tool = QToolBar('Tables')
+        self.col = QColorDialog()
+
         self.font_wig = {}
+        self.font_op = []
+        self.but_edit = {}
+        case_op = ['upper', 'lower' 'sentance', 'title', 'norm'] # , check for de, mc, mac,van,von]
         # view set by status
-        tb_op = ['save', 'load', 'add', 'font color', 'bold','it', 'underline', 'titlecase drop']
+        tb_op = ['save', 'load', 'add', 'B','I', 'U','color']
+        self.font_box = QComboBox()
+        self.font_box.addItems(case_op)
         # todo add remember size pos,
 
         for i in ['Call', 'WI']:  # todo lable and vert
-            j = QLabel(i+' font')
-            jj = QLabel(i+' size')
+            # j = QLabel(i+' font')
+            # jj = QLabel(i+' size')
             k = QFontComboBox()
             kk = QComboBox()
-            kk.addItems(self.font_sizes)  # todo add spinboxlike int pm and dropdown, and user val
+            kk.addItems([str(x) for x in self.font_sizes])  # todo add spinboxlike int pm and dropdown, and user val
             self.tool_bar.addWidget(k)
-            self.tool_bar.addWidget(j)
+
             self.tool_bar.addWidget(kk)
-            self.tool_bar.addWidget(jj)
+            # self.tool_bar.addWidget(j)
+            #self.tool_bar.addWidget(jj)
+        self.tool_bar.addWidget(self.font_box)
 
         for it in tb_op:
             j = QPushButton(it)
-            j.setIcon(self.img_loc+it)
+            # j.setIcon(self.img_loc+it)
             # todo add hotkey, add to menu with icon
+            self.but_edit[it] = j
             self.tool_bar.addWidget(j)
-
+        self.addToolBar(self.tool_bar)
+        self.but_edit['color'].clicked.connect(self.color)
         ############
         ### MENU ###
         ###########
+
+    def color(self):
+        c = self.col.exec()
+        self.active_col = QColorDialog.standardColor(c)
 
     def _update_set(self):  # onpopup combo
         # open file set to these, then run normal
@@ -162,34 +180,27 @@ class Window(QMainWindow):
         self.default_wins = ''
         self.cap_set = 'norm'  # change
         self.font_doc = 'Times'
-        self.cap_doc = 'upper'  # upper, lower sentance, titile, check for de, mc, mac,van,von
+        self.cap_doc = 'upper'
         self.font_wi = 'Times'
         self.cap_wi = 'title'
 
     def _set_center(self):
-        self.cen = DocStatus(self)  # for docter clinic
-        self.setCentralWidget(self.cen)
-
         self.cal_wig = Calendar(self)
         self.solver = SchedualOptomizer()
+        self.setCentralWidget(self.cal_wig)
 
-        self.cal_dock = QDockWidget('cal')
-        self.cal_dock.setWidget(self.cal_wig)
-        self.addDockWidget(Qt.BottomDockWidgetArea, self.cal_dock)
-        self.cen.reset_table()
 
     def _set_clinic(self):
-        self.clinic_wig = QTableWidget()
-        self.clinic_dock = QDockWidget('Status Clinic')
-        self.clinic_dock.setWidget(self.clinic_wig)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.clinic_dock)
+        self.doc_stat = DocStatus(self, 'Doc Stats')  # for docter clinic
+        self.day_stat = DocStatus(self,'Dayly Stats')
+        self.clinic_wig = DocStatus(self,'Live Clinic', Qt.LeftDockWidgetArea)
 
     def _create_tools(self):
         self.tool_wig = QWidget()
         self.tool_dock = QDockWidget('Tools')
         self.tool_dock.setWidget(self.tool_wig)
 
-        self.addDockWidget(Qt.RightDockWidgetArea, self.tool_dock)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.tool_dock)
 
         self.tool_layout = QGridLayout()
 
@@ -390,17 +401,16 @@ class DocStatus(QTableWidget):  # self.doc_dataframe_items
         self.pos = pos
         #
         self.horizontalHeader().sectionClicked.connect(self.sort_by)
-        # self.itemClicked.connect(self.sort_par)
         self.cellClicked.connect(self.tab_s)
         self.cellDoubleClicked.connect(self.set_popup)
         self.dia = None
         self._init_dock()
         self.reset_table()
 
-    def _init_doc(self):
+    def _init_dock(self):
         self.dock = QDockWidget(self.ti)
         self.dock.setWidget(self)
-        self.par.addDockWidget(self.dock)
+        self.par.addDockWidget(self.pos, self.dock)
 
     def handle_sum(self,x,ty):
         ave_x = np.mean(x)
@@ -579,7 +589,7 @@ class CalendarDayDelegate(QItemDelegate):
 
                 rect = option.rect  # todo caps
                 painter.save()
-
+                painter.setPen(self.par.par.active_col)
                 painter.setFont(self.call_font)
                 painter.drawText(rect, Qt.AlignCenter | Qt.AlignVCenter, doc)
 

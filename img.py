@@ -9,8 +9,8 @@ clean 4
 
 python
 amazon
-
-
+save by current clicked item else dia
+statusbar percent'status bar stats'
 patient_time = {'claassens': 30, 'dehlen': 20, 'lategan': 15}
 
 call_list = {}
