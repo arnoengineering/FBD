@@ -1,5 +1,5 @@
-from PyQt5.QtGui import QFont, QTextCharFormat, QPalette  # QPainter, QPen,QBrush,
-from PyQt5.QtCore import Qt, QDate, QSettings  # QTimer, QSize,
+from PyQt5.QtGui import QFont, QTextCharFormat, QPalette, QPainter  # QPainter, QPen,QBrush,
+from PyQt5.QtCore import Qt, QDate, QSettings, QRect  # QTimer, QSize,
 
 from PyQt5.QtWidgets import *
 
@@ -18,8 +18,10 @@ def sort_day(ls):
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('Shedualer')
+        self.setWindowTitle('Call Schedule Optimizer')
+        self.settings = QSettings('Claassens Software', 'Calling LLB_2022')  # todo change
 
+        self._update_set()
         self._set_list()
         self._set_empty()
 
@@ -61,9 +63,6 @@ class Window(QMainWindow):
         self.cmd_ls['doc'] = self.doc_data['Name']
         # self.av = {columns=['Date']+self.cmd_ls['doc'])
         # add 'avail': {'pacient':'arno', 'room':4}
-    # tool-list: add prefernce, add away, force update, split into two docs per day,
-    # run solver, rerun solver, save solver, export solver,
-    # doc time behind
 
     def set_combo(self, in_ls, out_ls, n=0, m=0, func=None):
         if not func:
@@ -133,9 +132,9 @@ class Window(QMainWindow):
         self.font_wig = {}
         self.font_op = []
         self.but_edit = {}
-        case_op = ['upper', 'lower' 'sentance', 'title', 'norm'] # , check for de, mc, mac,van,von]
+        case_op = ['upper', 'lower' 'sentance', 'title', 'norm']  # , check for de, mc, mac,van,von]
         # view set by status
-        tb_op = ['save', 'load', 'add', 'B','I', 'U','color']
+        tb_op = ['save', 'load', 'add', 'B', 'I', 'U']
         self.font_box = QComboBox()
         self.font_box.addItems(case_op)
         # todo add remember size pos,
@@ -150,7 +149,7 @@ class Window(QMainWindow):
 
             self.tool_bar.addWidget(kk)
             # self.tool_bar.addWidget(j)
-            #self.tool_bar.addWidget(jj)
+            # self.tool_bar.addWidget(jj)
         self.tool_bar.addWidget(self.font_box)
 
         for it in tb_op:
@@ -160,40 +159,56 @@ class Window(QMainWindow):
             self.but_edit[it] = j
             self.tool_bar.addWidget(j)
         self.addToolBar(self.tool_bar)
-        self.but_edit['color'].clicked.connect(self.color)
+        self.but_edit['color'] = ColorButton('Color', self)
+        self.tool_bar.addWidget(self.but_edit['color'])
+
+        # todo bold underline, italic, save load, dload lego
+        # self.but_edit['color'].clicked.connect(self.color)
         ############
         ### MENU ###
         ###########
 
     def color(self):
-        c = self.col.exec()
-        self.active_col = QColorDialog.standardColor(c)
+        # c = self.col.exec()
+        self.col.setCurrentColor(self.active_col)
+        self.active_col = QColorDialog().getColor()
 
     def _update_set(self):  # onpopup combo
         # open file set to these, then run normal
-        self.day_week_form = 'Long'  # long,sort,,let
-        self.cal_form = 'y-m-d'  # y-m-d,y-d-m,d-m-y,m-d-y
+        self.setting_keys = ['Date Format',# y-m-d,y-d-m,d-m-y,m-d-y
+                             'Weekday Format',# long,sort,,let
+                             'Start Week Format',
+                             'Call Font',
+                             'call Size',
+                             'call color',
+                             'call capital',  # todo itterate
+                             'walk in Font',
+                             'walk in Size',
+                             'walk in color',
+                             'Week Number',
+                             'Doc File Loc',  # todo all file locs
+                             'Window Size',
+                             'Window Loc',  # todo active widgets, size, loc
+                             ]
+        for ke in self.settings.allKeys():
+            ke_new = ke.lower().replace(' ', '_')
+            val = self.settings.value(ke)  # todo add others add functions on soime vals_ try....
+            self.__setattr__(ke_new, val)
         self.week_mum = False
         self.default_scedule_loc = ''  # file_path
         self.default_doc_list_loc = ''  # file_path
         self.default_doc_pref_loc = ''  # file_path
         self.default_wins = ''
-        self.cap_set = 'norm'  # change
-        self.font_doc = 'Times'
-        self.cap_doc = 'upper'
-        self.font_wi = 'Times'
-        self.cap_wi = 'title'
 
     def _set_center(self):
         self.cal_wig = Calendar(self)
         self.solver = SchedualOptomizer()
         self.setCentralWidget(self.cal_wig)
 
-
     def _set_clinic(self):
         self.doc_stat = DocStatus(self, 'Doc Stats')  # for docter clinic
-        self.day_stat = DocStatus(self,'Dayly Stats')
-        self.clinic_wig = DocStatus(self,'Live Clinic', Qt.LeftDockWidgetArea)
+        self.day_stat = DocStatus(self, 'Dayly Stats')
+        self.clinic_wig = DocStatus(self, 'Live Clinic', Qt.LeftDockWidgetArea)
 
     def _create_tools(self):
         self.tool_wig = QWidget()
@@ -271,11 +286,15 @@ class Window(QMainWindow):
             df = pd.DataFrame([df_l], columns=['Date', 'Call', 'WI'])
             self.schedul = pd.concat([self.schedul, df], ignore_index=True)
 
-    def closeEvent(self, event):
-        settings = QSettings('My C', 'My App')  # todo change
-        settings.setValue("geometry", self.saveGeometry())
-        settings.setValue("windowState", self.saveState())
-        settings.sync()
+    def closeEvent(self, event):  # todo load settings
+        self.settings.setValue("Geometry", self.saveGeometry())
+        self.settings.setValue("windowState", self.saveState())
+        for child in self.children():
+            self.settings.beginGroup(child.objectName())  # todo correcxt?
+            self.settings.setValue("Geometry", child.saveGeometry())
+            self.settings.setValue("windowState", child.saveState())
+            self.settings.endGroup()
+        self.settings.sync()
         event.accept()
 
 
@@ -392,7 +411,7 @@ class Calendar(QCalendarWidget):
 
 
 class DocStatus(QTableWidget):  # self.doc_dataframe_items
-    def __init__(self, par,ti='Clinic', pos=Qt.RightDockWidgetArea):
+    def __init__(self, par, ti='Clinic', pos=Qt.RightDockWidgetArea):
         super().__init__()
         self.ti = ti
         self.sort_ascend = True
@@ -412,17 +431,17 @@ class DocStatus(QTableWidget):  # self.doc_dataframe_items
         self.dock.setWidget(self)
         self.par.addDockWidget(self.pos, self.dock)
 
-    def handle_sum(self,x,ty):
+    def handle_sum(self, x, ty):
         ave_x = np.mean(x)
         cnt_x = x.size
         if ty == 'ave':
             re_c = ave_x
         elif ty == 'sd':
-            re_c = np.sqrt(np.sum((x-ave_x)**2)/cnt_x)
+            re_c = np.sqrt(np.sum((x - ave_x) ** 2) / cnt_x)
         elif ty == 'cnt' or ty == 'sum':
             re_c = np.sum(x)
-        else: # ty == 'per': # todo in ty
-            re_c = x/ np.sum(x)  # for each
+        else:  # ty == 'per': # todo in ty
+            re_c = x / np.sum(x)  # for each
         return re_c  # for row: {for col:{handle_sum(row.head,col[:row.num()])}}
 
     def reset_table(self):  # todo add filters,
@@ -602,6 +621,26 @@ class CalendarDayDelegate(QItemDelegate):
         if painter._date_flag:
             option.displayAlignment = Qt.AlignTop | Qt.AlignLeft
         super(CalendarDayDelegate, self).drawDisplay(painter, option, rect, text)
+
+
+class ColorButton(QPushButton):
+    def __init__(self, col='', par=None):  # todo empty space
+        super().__init__(col)
+
+        self.par = par
+        self.clicked.connect(self.par.color)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        r_w = self.width() // 3
+        r_h = self.height() // 2
+
+        rect = QRect(0, 0, r_w, r_h)
+        rect.moveTo(self.rect().bottomRight() - rect.bottomRight())
+
+        painter = QPainter(self)
+        painter.setBrush(self.par.active_col)
+        painter.drawRect(rect)
 
 
 if __name__ == '__main__':

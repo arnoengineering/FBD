@@ -12,11 +12,14 @@ amazon
 save by current clicked item else dia
 statusbar percent'status bar stats'
 patient_time = {'claassens': 30, 'dehlen': 20, 'lategan': 15}
-
+print
+email
 call_list = {}
 
 walk_in_list = {}
-
+# tool-list: add prefernce, add away, force update, split into two docs per day,
+    # run solver, rerun solver, save solver, export solver,
+    # doc time behind
 
 #
 # def doc_behind(doc):
