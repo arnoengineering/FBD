@@ -19,7 +19,7 @@ class Window(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Call Schedule Optimizer')
-        self.settings = QSettings('Claassens Software', 'Calling LLB_2022')  # todo change
+        self.settings = QSettings('Claassens Software', 'Calling LLB_2022')
         self.start_up_promt()
         self._update_set()
         self._set_list()
@@ -101,7 +101,7 @@ class Window(QMainWindow):
                 self.tool_layout.addWidget(k, m, n)
                 k.clicked.connect(partial(func, wig_name))
                 n += 1
-                m_max = m
+
                 if n > 4:
                     m += 1
                     n = 0
@@ -129,15 +129,17 @@ class Window(QMainWindow):
         self.font_sizes = [7, 8, 9, 10, 11, 12, 13, 14, 18, 24, 36, 48, 64, 72, 96, 144, 288]
         # self.img_loc = self.file_loc + '/img/'
         self.tool_bar = QToolBar('Main toolbar')
-        self.cal_tool_bar = QToolBar('Calendar')  # todo add swap
+        self.cal_tool_bar = QToolBar('Calendar')  # todo add docs swap: bold underline, italic, save load, dload lego
+
         self.table_tool = QToolBar('Tables')
         self.col = QColorDialog()
 
         self.font_wig = {'Font': QFontComboBox(), 'Size': QComboBox(),'Capital': QComboBox()}
+        self.font_ty = {'Call': QFont.Times, 'WI': QFont.Times}
+        self.cap_op = ['As Entered', 'UPPERCASE', 'lowercase' 'Capitalize', 'SurName']
+
         self.font_op = []
         self.but_edit = {}
-        # view set by status
-        self.font_ty = {'Call': QFont.Times, 'WI': QFont.Times}
         self.font_ty_wig = {}
         tb_op = ['save', 'load', 'add', 'B', 'I', 'U']
 
@@ -147,14 +149,11 @@ class Window(QMainWindow):
             # todo add hotkey, add to menu with icon
             self.but_edit[it] = j
             self.tool_bar.addWidget(j)
+
         self.addToolBar(self.tool_bar)
         self.but_edit['color'] = ColorButton('Color', self)
         self.tool_bar.addWidget(self.but_edit['color'])
 
-        # todo bold underline, italic, save load, dload lego
-        # self.but_edit['color'].clicked.connect(self.color)
-
-        self.cap_op = ['As Entered', 'UPPERCASE', 'lowercase' 'Capitalize', 'SurName']
         self.font_wig['Capital'].addItems(self.cap_op)
         self.font_wig['Capital'].currentIndexChanged.connect(self.set_cap)
 
@@ -329,11 +328,11 @@ class Window(QMainWindow):
             df = pd.DataFrame([df_l], columns=['Date', 'Call', 'WI'])
             self.schedul = pd.concat([self.schedul, df], ignore_index=True)
 
-    def closeEvent(self, event):  # todo load settings
+    def closeEvent(self, event):
         self.settings.setValue("Geometry", self.saveGeometry())
         self.settings.setValue("windowState", self.saveState())
         for child in self.children():
-            self.settings.beginGroup(child.objectName())  # todo correcxt?
+            self.settings.beginGroup(child.objectName())
             self.settings.setValue("Geometry", child.saveGeometry())
             self.settings.setValue("windowState", child.saveState())
             self.settings.endGroup()
@@ -468,6 +467,8 @@ class DocStatus(QTableWidget):  # self.doc_dataframe_items
         self.dia = None
         self._init_dock()
         self.reset_table()
+        # todo
+        """add filters,"""
 
     def _init_dock(self):
         self.dock = QDockWidget(self.ti)
@@ -487,7 +488,7 @@ class DocStatus(QTableWidget):  # self.doc_dataframe_items
             re_c = x / np.sum(x)  # for each
         return re_c  # for row: {for col:{handle_sum(row.head,col[:row.num()])}}
 
-    def reset_table(self):  # todo add filters,
+    def reset_table(self):
         self.clear()
 
         r, c = self.par.doc_data.shape
@@ -539,7 +540,7 @@ class docPopup(QDialog):
         super().__init__()
         self.res = res
         self.par = par
-        self.doc_op = ['Baby', 'Sur', 'Anestetics', 'locum']  # todo caps
+        self.doc_op = ['Baby', 'Sur', 'Anestetics', 'Locum']
         self.doc_data = {}
         self.setModal(False)
         self._init_layout()
@@ -558,10 +559,9 @@ class docPopup(QDialog):
         if self.res:
             self.name_edit.setText(self.res)
 
-        # self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
-
         self.verticalLayout_2.addWidget(self.name_lay)
         self.verticalLayout_2.addWidget(self.name_edit)
+        # self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
         # self.verticalLayout_2.addItem(self.verticalSpacer)
 
         self.doc_op_check = {}
@@ -569,7 +569,6 @@ class docPopup(QDialog):
             op_box = QCheckBox(op)
             self.doc_op_check[op] = op_box
             self.verticalLayout.addWidget(op_box)
-            # j.clicked.connect(self)
 
         self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
@@ -585,7 +584,7 @@ class docPopup(QDialog):
         self.dia_lay.addLayout(self.horizontalLayout)
         self.setLayout(self.dia_lay)
 
-    def acc(self):  # todo par doc data
+    def acc(self):  # todo par doc data: save
         print('accet')
         if self.res:
             del self.doc_data[self.res]
@@ -596,7 +595,7 @@ class docPopup(QDialog):
                 kk.append(i)
         self.doc_data[self.name_edit.text()] = kk
         print('doc d', self.doc_data)
-        # todo save
+
         self.accept()
 
     def rej(self):
@@ -617,8 +616,13 @@ class CalendarDayDelegate(QItemDelegate):
         self.call_font.setBold(True)
 
         self.wi_font = QFont()
-        self.wi_font.setPixelSize(9)  # todo set color
+        self.wi_font.setPixelSize(9)
         self.wi_font.setItalic(True)
+        # todo
+        """
+        set color, pixel,font
+        check index
+        """
 
     def paint(self, painter, option, index):
 
@@ -627,7 +631,7 @@ class CalendarDayDelegate(QItemDelegate):
 
         if painter._date_flag:
 
-            date_num_full = index.data()  # todo is index correct
+            date_num_full = index.data()
             index_loc = (index.row(), index.column())
             year = self.par.yearShown()
             month = self.par.monthShown()
@@ -649,7 +653,7 @@ class CalendarDayDelegate(QItemDelegate):
             if date in list(self.par.par.schedul['Date']):
                 doc, doc_wi = self.par.par.doc_on_day(date)
 
-                rect = option.rect  # todo caps
+                rect = option.rect
                 painter.save()
                 painter.setPen(self.par.par.active_col)
                 painter.setFont(self.call_font)
