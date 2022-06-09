@@ -135,12 +135,14 @@ class Window(QMainWindow):
         self.col = QColorDialog()
 
         self.font_wig = {'Font': QFontComboBox(), 'Size': QComboBox(),'Capital': QComboBox()}
-        self.font_ty = {'Call': QFont.Times, 'WI': QFont.Times}
+
         self.cap_op = ['As Entered', 'UPPERCASE', 'lowercase' 'Capitalize', 'SurName']
+        self.font_ty = {'Call': {'Font': QFont.Times, 'Size': self.font_sizes[2], 'Capital': self.cap_op[3]},
+                        'WI': {'Font': QFont.Times, 'Size': self.font_sizes[0], 'Capital': self.cap_op[0]}}
 
         self.font_op = []
         self.but_edit = {}
-        self.font_ty_wig = {}
+        self.font_ty_wig = {}  # on cange windows change all values to new widit
         tb_op = ['save', 'load', 'add', 'B', 'I', 'U']
 
         for it in tb_op:
@@ -167,32 +169,20 @@ class Window(QMainWindow):
         self.font_edit = QComboBox()
         self.font_edit.addItems(['Call', 'WI'])
 
+    def set_active_wig(self, wig):
+        self.active_wig = wig
+        print(f'Window ({wig}) is now active')
+        self.font_edit.setEnabled(wig == 'Cal')
+
     def set_active_font(self,font):
         print('running activefont')
         if self.font_edit.isEnabled():
             print('font_enabled')
-            self.font_ty[self.font_edit.currentText()] = font
+            self.font_ty[self.font_edit.currentText()]['Font'] = font
             print('set font: ', font)
         else:
             print('font_disabled')
-            c = self.is_focus()
-            self.font_ty_win[c] = font
-
-    def is_focus(self):  # todo on focuscanged
-
-        c = self.findChild(Calendar)
-        print('loaded cal')
-        if c.hasFocus():
-            print('cal focus')
-            return 'Cal'
-        else:
-            print('no cal')
-            for i in self.findChildren(QDockWidget):
-                print('i test focus')
-                if i.hasFocus():
-                    j = i.windowTitle()
-                    print('i had focus: ', j)
-                    return j
+            self.font_ty_win[self.active_wig] = font
 
     def sur_cap(self, st):
         st = st.lower()
@@ -246,6 +236,7 @@ class Window(QMainWindow):
         self.cal_wig = Calendar(self)
         self.solver = SchedualOptomizer()
         self.setCentralWidget(self.cal_wig)
+        self.active_wig = 'Cal'
 
     def _set_clinic(self):
         self.doc_stat = DocStatus(self, 'Doc Stats')  # for docter clinic
@@ -331,10 +322,12 @@ class Window(QMainWindow):
     def closeEvent(self, event):
         self.settings.setValue("Geometry", self.saveGeometry())
         self.settings.setValue("windowState", self.saveState())
-        for child in self.children():
+        print('logging of')
+        for child in self.findChildren((Calendar, DocStatus)):
+            print(' child found to be logged: ', child)
             self.settings.beginGroup(child.objectName())
             self.settings.setValue("Geometry", child.saveGeometry())
-            self.settings.setValue("windowState", child.saveState())
+            # self.settings.setValue("windowState", child.saveState())
             self.settings.endGroup()
         self.settings.sync()
         event.accept()
@@ -357,6 +350,9 @@ class Calendar(QCalendarWidget):
         self.set_wig_2()
         self._init_calendar()
         self._init_high()
+
+    def mousePressEvent(self, event):
+        self.par.set_active_wig('Cal')
 
     def _init_high(self):
         self.highlight_format = QTextCharFormat()
@@ -469,6 +465,9 @@ class DocStatus(QTableWidget):  # self.doc_dataframe_items
         self.reset_table()
         # todo
         """add filters,"""
+
+    def mousePressEvent(self, event):
+        self.par.set_active_wig(self.ti)
 
     def _init_dock(self):
         self.dock = QDockWidget(self.ti)
@@ -655,7 +654,14 @@ class CalendarDayDelegate(QItemDelegate):
 
                 rect = option.rect
                 painter.save()
-                painter.setPen(self.par.par.active_col)
+                painter.setPen(self.par.par.active_col)  #todo seettting to dict
+
+                self.call_font.setFamily(self.par.par.font_ty['Call']['Font'])
+                self.call_font.setPixelSize(self.par.par.font_ty['Call']['Size'])
+
+                self.wi_font.setFamily(self.par.par.font_ty['WI']['Font'])
+                self.wi_font.setPixelSize(self.par.par.font_ty['WI']['Size'])
+
                 painter.setFont(self.call_font)
                 painter.drawText(rect, Qt.AlignCenter | Qt.AlignVCenter, doc)
 
