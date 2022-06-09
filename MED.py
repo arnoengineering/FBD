@@ -20,7 +20,7 @@ class Window(QMainWindow):
         super().__init__()
         self.setWindowTitle('Call Schedule Optimizer')
         self.settings = QSettings('Claassens Software', 'Calling LLB_2022')  # todo change
-
+        self.start_up_promt()
         self._update_set()
         self._set_list()
         self._set_empty()
@@ -33,6 +33,10 @@ class Window(QMainWindow):
         self._create_tools()
 
         self._creat_toolbar()
+
+    def start_up_promt(self):
+        # todo add dialog with load defults or user, show on startup?
+        pass
 
     def _set_list(self):
         self.docs = [{'Name': 'Dehlen', 'status': 'away', 'ontime delta': '-', 'patients behind': 0},
@@ -129,28 +133,13 @@ class Window(QMainWindow):
         self.table_tool = QToolBar('Tables')
         self.col = QColorDialog()
 
-        self.font_wig = {}
+        self.font_wig = {'Font': QFontComboBox(), 'Size': QComboBox(),'Capital': QComboBox()}
         self.font_op = []
         self.but_edit = {}
-        case_op = ['upper', 'lower' 'sentance', 'title', 'norm']  # , check for de, mc, mac,van,von]
         # view set by status
+        self.font_ty = {'Call': QFont.Times, 'WI': QFont.Times}
+        self.font_ty_wig = {}
         tb_op = ['save', 'load', 'add', 'B', 'I', 'U']
-        self.font_box = QComboBox()
-        self.font_box.addItems(case_op)
-        # todo add remember size pos,
-
-        for i in ['Call', 'WI']:  # todo lable and vert
-            # j = QLabel(i+' font')
-            # jj = QLabel(i+' size')
-            k = QFontComboBox()
-            kk = QComboBox()
-            kk.addItems([str(x) for x in self.font_sizes])  # todo add spinboxlike int pm and dropdown, and user val
-            self.tool_bar.addWidget(k)
-
-            self.tool_bar.addWidget(kk)
-            # self.tool_bar.addWidget(j)
-            # self.tool_bar.addWidget(jj)
-        self.tool_bar.addWidget(self.font_box)
 
         for it in tb_op:
             j = QPushButton(it)
@@ -164,9 +153,58 @@ class Window(QMainWindow):
 
         # todo bold underline, italic, save load, dload lego
         # self.but_edit['color'].clicked.connect(self.color)
-        ############
-        ### MENU ###
-        ###########
+
+        self.cap_op = ['As Entered', 'UPPERCASE', 'lowercase' 'Capitalize', 'SurName']
+        self.font_wig['Capital'].addItems(self.cap_op)
+        self.font_wig['Capital'].currentIndexChanged.connect(self.set_cap)
+
+        self.font_wig['Font'].currentFontChanged.connect(self.set_active_font)
+        self.font_wig['Size'].addItems([str(x) for x in self.font_sizes])  # todo add user val check if int and user val
+
+        for i in self.font_wig.values():
+            self.tool_bar.addWidget(i)
+
+        # for selectic cal or walkin to edit, disable if not on cal, add conditional to tables
+        self.font_edit = QComboBox()
+        self.font_edit.addItems(['Call', 'WI'])
+
+    def set_active_font(self,font):
+        print('running activefont')
+        if self.font_edit.isEnabled():
+            print('font_enabled')
+            self.font_ty[self.font_edit.currentText()] = font
+            print('set font: ', font)
+        else:
+            print('font_disabled')
+            c = self.is_focus()
+            self.font_ty_win[c] = font
+
+    def is_focus(self):  # todo on focuscanged
+
+        c = self.findChild(Calendar)
+        print('loaded cal')
+        if c.hasFocus():
+            print('cal focus')
+            return 'Cal'
+        else:
+            print('no cal')
+            for i in self.findChildren(QDockWidget):
+                print('i test focus')
+                if i.hasFocus():
+                    j = i.windowTitle()
+                    print('i had focus: ', j)
+                    return j
+
+    def sur_cap(self, st):
+        st = st.lower()
+        pass # split sr bsased on if van in group of peplename, then caps each and join
+
+    def set_cap(self, i):
+        ty = self.font_edit.currentText()
+        if i < 5:  #enum
+            self.font_style[ty] = i
+        else:   # todo return func, but thewn have to run on calendar loop
+            pass
 
     def color(self):
         # c = self.col.exec()
@@ -175,6 +213,9 @@ class Window(QMainWindow):
 
     def _update_set(self):  # onpopup combo
         # open file set to these, then run normal
+        print('loading_all')
+        self.call_op = {'Font': [QFont.Times, QFont.Times], 'Size': [12, 11], 'Italics': [False, True],
+                        'bold': [True, False], 'Capital': ['Upper','lower', 'as endered', 'capital', 'surname']}
         self.setting_keys = ['Date Format',# y-m-d,y-d-m,d-m-y,m-d-y
                              'Weekday Format',# long,sort,,let
                              'Start Week Format',
@@ -191,9 +232,11 @@ class Window(QMainWindow):
                              'Window Loc',  # todo active widgets, size, loc
                              ]
         for ke in self.settings.allKeys():
-            ke_new = ke.lower().replace(' ', '_')
-            val = self.settings.value(ke)  # todo add others add functions on soime vals_ try....
-            self.__setattr__(ke_new, val)
+            val = self.settings.value(ke,10)  # todo add others add functions on soime vals_ try....
+            ke_new = ke.lower().replace(' ', '_')  # todo change  so defalt vas in dict
+            print(f'key, val: {ke}, {val}')
+            # todo save special, load on default or last, use create settings dialog based on initial creation
+            # self.__setattr__(ke_new, val)
         self.week_mum = False
         self.default_scedule_loc = ''  # file_path
         self.default_doc_list_loc = ''  # file_path
@@ -246,8 +289,8 @@ class Window(QMainWindow):
         elif i == 'Setting Mode':
             self.set_mode = ex
         elif i == 'doc':
-            self.active_doc = self.typ_c[i].currentText()
-            self.cen.update_active(self.active_doc)
+            self.active_doc = ex
+            self.cen.update_active(ex)
         elif i == self.wn:
             # QCalendarWidget.noVer
             self.cal_wig.set_wig_2()
@@ -260,7 +303,7 @@ class Window(QMainWindow):
 
     def run_doc_solve(self):
         for day in self.cal_wig.full_date_list:
-            print(f'Day {day}, doc {self.active_doc}, status {self.set_mode}')
+            print(f'Day {day}, doc {self.typ_c["doc"].currentText()}, status {self.set_mode}')
             # self.av[day][self.active_doc]['Status'] = self.set_mode
         # doc_on_day()
 
