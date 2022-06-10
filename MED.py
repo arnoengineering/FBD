@@ -220,7 +220,7 @@ class Window(QMainWindow):
         print('loading_all')
         self.call_op = {'Font': [QFont.Times, QFont.Times], 'Size': [12, 11], 'Italics': [False, True],
                         'bold': [True, False], 'Capital': ['Upper', 'lower', 'as endered', 'capital', 'surname']}
-        self.setting_keys = ['Date Format',  # y-m-d,y-d-m,d-m-y,m-d-y
+        self.setting_keys = {'Date Format', 'dd-MMM-yyyy' # y-m-d,y-d-m,d-m-y,m-d-y
                              'Weekday Format',  # long,sort,,let
                              'Start Week Format',
                              'Call Font',
@@ -234,7 +234,7 @@ class Window(QMainWindow):
                              'Doc File Loc',  # todo all file locs
                              'Window Size',
                              'Window Loc',  # todo active widgets, size, loc
-                             ]
+                             }
         for ke in self.settings.allKeys():
             val = self.settings.value(ke, 10)  # todo add others add functions on soime vals_ try....
             ke_new = ke.lower().replace(' ', '_')  # todo change  so defalt vas in dict
@@ -246,6 +246,10 @@ class Window(QMainWindow):
         self.default_doc_list_loc = ''  # file_path
         self.default_doc_pref_loc = ''  # file_path
         self.default_wins = ''
+
+    def set_date_format(self,d):
+        form = ['dd-MMM-yyyy', 'dd-mm-yyyy']  # et al
+        pass
 
     def _set_center(self):
         self.cal_wig = Calendar(self)
