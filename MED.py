@@ -1,10 +1,11 @@
 from PyQt5.QtGui import QFont, QTextCharFormat, QPalette, QPainter  # QPainter, QPen,QBrush,
 from PyQt5.QtCore import Qt, QDate, QSettings, QRect  # QTimer, QSize,
-
+# from logging import exception
 from PyQt5.QtWidgets import *
 
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 import sys
 
 from functools import partial
@@ -134,15 +135,25 @@ class Window(QMainWindow):
         self.table_tool = QToolBar('Tables')
         self.col = QColorDialog()
 
-        self.font_wig = {'Font': QFontComboBox(), 'Size': QComboBox(),'Capital': QComboBox()}
+        self.font_wig = {'Font': QFontComboBox(), 'Size': QComboBox(), 'Capital': QComboBox()}
 
         self.cap_op = ['As Entered', 'UPPERCASE', 'lowercase' 'Capitalize', 'SurName']
-        self.font_ty = {'Call': {'Font': QFont.Times, 'Size': self.font_sizes[2], 'Capital': self.cap_op[3]},
-                        'WI': {'Font': QFont.Times, 'Size': self.font_sizes[0], 'Capital': self.cap_op[0]}}
+        self.font_ty = {'Call': {'Font': QFont("Times"), 'Size': self.font_sizes[3],
+                                 'Capital': self.cap_op[3], 'Color': Qt.blue},
+                        'WI': {'Font': QFont("Times"), 'Size': self.font_sizes[0],
+                               'Capital': self.cap_op[0], 'Color': Qt.black},
+                        'Doc Stats': {'Font': QFont("Times"), 'Size': self.font_sizes[1],
+                                      'Capital': self.cap_op[0], 'Color': Qt.black},
+                        'Dayly Stats': {'Font': QFont("Times"), 'Size': self.font_sizes[0],
+                                        'Capital': self.cap_op[0], 'Color': Qt.black},
+                        'Live Clinic': {'Font': QFont("Times"), 'Size': self.font_sizes[2],
+                                        'Capital': self.cap_op[0], 'Color': Qt.black}
+                        }
 
         self.font_op = []
         self.but_edit = {}
-        self.font_ty_wig = {}  # on cange windows change all values to new widit
+        self.font_ty_win = {}
+
         tb_op = ['save', 'load', 'add', 'B', 'I', 'U']
 
         for it in tb_op:
@@ -174,39 +185,43 @@ class Window(QMainWindow):
         print(f'Window ({wig}) is now active')
         self.font_edit.setEnabled(wig == 'Cal')
 
-    def set_active_font(self,font):
+    def set_active_font(self, font=None, ty='Font'):
+
         print('running activefont')
+
         if self.font_edit.isEnabled():
-            print('font_enabled')
-            self.font_ty[self.font_edit.currentText()]['Font'] = font
-            print('set font: ', font)
+            tty = self.font_edit.currentText()
+
         else:
-            print('font_disabled')
-            self.font_ty_win[self.active_wig] = font
+            tty = self.active_wig
+        if ty == 'Color':
+            self.col.setCurrentColor(self.font_ty[tty][ty])
+            font = QColorDialog().getColor()
+        self.font_ty[tty][ty] = font
+
 
     def sur_cap(self, st):
         st = st.lower()
-        pass # split sr bsased on if van in group of peplename, then caps each and join
+        pass  # split sr bsased on if van in group of peplename, then caps each and join
 
     def set_cap(self, i):
         ty = self.font_edit.currentText()
-        if i < 5:  #enum
+        if i < 5:  # enum
             self.font_style[ty] = i
-        else:   # todo return func, but thewn have to run on calendar loop
+        else:  # todo return func, but thewn have to run on calendar loop
             pass
 
-    def color(self):
-        # c = self.col.exec()
-        self.col.setCurrentColor(self.active_col)
-        self.active_col = QColorDialog().getColor()
+    # def color(self):
+    #     # c = self.col.exec()
+
 
     def _update_set(self):  # onpopup combo
         # open file set to these, then run normal
         print('loading_all')
         self.call_op = {'Font': [QFont.Times, QFont.Times], 'Size': [12, 11], 'Italics': [False, True],
-                        'bold': [True, False], 'Capital': ['Upper','lower', 'as endered', 'capital', 'surname']}
-        self.setting_keys = ['Date Format',# y-m-d,y-d-m,d-m-y,m-d-y
-                             'Weekday Format',# long,sort,,let
+                        'bold': [True, False], 'Capital': ['Upper', 'lower', 'as endered', 'capital', 'surname']}
+        self.setting_keys = ['Date Format',  # y-m-d,y-d-m,d-m-y,m-d-y
+                             'Weekday Format',  # long,sort,,let
                              'Start Week Format',
                              'Call Font',
                              'call Size',
@@ -221,7 +236,7 @@ class Window(QMainWindow):
                              'Window Loc',  # todo active widgets, size, loc
                              ]
         for ke in self.settings.allKeys():
-            val = self.settings.value(ke,10)  # todo add others add functions on soime vals_ try....
+            val = self.settings.value(ke, 10)  # todo add others add functions on soime vals_ try....
             ke_new = ke.lower().replace(' ', '_')  # todo change  so defalt vas in dict
             print(f'key, val: {ke}, {val}')
             # todo save special, load on default or last, use create settings dialog based on initial creation
@@ -320,9 +335,10 @@ class Window(QMainWindow):
             self.schedul = pd.concat([self.schedul, df], ignore_index=True)
 
     def closeEvent(self, event):
+
         self.settings.setValue("Geometry", self.saveGeometry())
         self.settings.setValue("windowState", self.saveState())
-        print('logging of')
+
         for child in self.findChildren((Calendar, DocStatus)):
             print(' child found to be logged: ', child)
             self.settings.beginGroup(child.objectName())
@@ -610,18 +626,6 @@ class CalendarDayDelegate(QItemDelegate):
         self.par = par
         self.last_month = True
 
-        self.call_font = QFont()
-        self.call_font.setPixelSize(11)
-        self.call_font.setBold(True)
-
-        self.wi_font = QFont()
-        self.wi_font.setPixelSize(9)
-        self.wi_font.setItalic(True)
-        # todo
-        """
-        set color, pixel,font
-        check index
-        """
 
     def paint(self, painter, option, index):
 
@@ -650,23 +654,22 @@ class CalendarDayDelegate(QItemDelegate):
             date = QDate(year, month, date_num_full)
 
             if date in list(self.par.par.schedul['Date']):
-                doc, doc_wi = self.par.par.doc_on_day(date)
+                doc = self.par.par.doc_on_day(date)
 
                 rect = option.rect
+                op = [Qt.AlignCenter | Qt.AlignVCenter, Qt.AlignRight | Qt.AlignBottom]
+
                 painter.save()
-                painter.setPen(self.par.par.active_col)  #todo seettting to dict
+                d = self.par.par.font_ty
 
-                self.call_font.setFamily(self.par.par.font_ty['Call']['Font'])
-                self.call_font.setPixelSize(self.par.par.font_ty['Call']['Size'])
-
-                self.wi_font.setFamily(self.par.par.font_ty['WI']['Font'])
-                self.wi_font.setPixelSize(self.par.par.font_ty['WI']['Size'])
-
-                painter.setFont(self.call_font)
-                painter.drawText(rect, Qt.AlignCenter | Qt.AlignVCenter, doc)
-
-                painter.setFont(self.wi_font)
-                painter.drawText(rect, Qt.AlignRight | Qt.AlignBottom, doc_wi)
+                for n, i in enumerate(['Call', 'WI']):
+                    painter.setPen(d[i]['Color'])  # todo seettting to dict
+                    font = d[i]['Font']
+                    font.setPixelSize(d[i]['Size'])
+                    QFont()
+                    font.setCapitalization(self.par.par.cap_op.index(d[i]['Capital']))
+                    painter.setFont(font)
+                    painter.drawText(rect, op[n], doc[n])
 
                 painter.restore()
 
@@ -681,7 +684,7 @@ class ColorButton(QPushButton):
         super().__init__(col)
 
         self.par = par
-        self.clicked.connect(self.par.color)
+        self.clicked.connect(lambda _: self.par.set_active_font(ty='Color'))
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -699,5 +702,6 @@ class ColorButton(QPushButton):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     win = Window()
+
     win.show()
     sys.exit(app.exec_())
