@@ -3,7 +3,6 @@ from PyQt5.QtCore import Qt, QDate, QSettings, QRect  # QTimer, QSize,
 # from logging import exception
 from PyQt5.QtWidgets import *
 
-
 import numpy as np
 import pandas as pd
 import sys
@@ -154,14 +153,17 @@ class Window(QMainWindow):
         self.but_edit = {}
         self.font_ty_win = {}
 
-        tb_op = ['save', 'load', 'add', 'B', 'I', 'U']
+        self.save_op = SuperButton('File Options', self, vals=['save', 'load', 'add'])
+        self.font_head = SuperButton('Style Options', self, vals=['B', 'I', 'U'])
+        self.tool_bar.addWidget(self.save_op)
+        self.tool_bar.addWidget(self.font_head)
 
-        for it in tb_op:
-            j = QPushButton(it)
-            # j.setIcon(self.img_loc+it)
-            # todo add hotkey, add to menu with icon
-            self.but_edit[it] = j
-            self.tool_bar.addWidget(j)
+        # for it in tb_op:
+        #     j = QPushButton(it)
+        #     # j.setIcon(self.img_loc+it)
+        #     # todo add hotkey, add to menu with icon
+        #     self.but_edit[it] = j
+        #     self.tool_bar.addWidget(j)
 
         self.addToolBar(self.tool_bar)
         self.but_edit['color'] = ColorButton('Color', self)
@@ -177,8 +179,8 @@ class Window(QMainWindow):
             self.tool_bar.addWidget(i)
 
         # for selectic cal or walkin to edit, disable if not on cal, add conditional to tables
-        self.font_edit = QComboBox()
-        self.font_edit.addItems(['Call', 'WI'])
+        self.font_edit = SuperCombo('FontEdit', self, vals=['Call', 'WI'])
+        self.tool_bar.addWidget(self.font_edit.wig)
 
     def set_active_wig(self, wig):
         self.active_wig = wig
@@ -199,7 +201,6 @@ class Window(QMainWindow):
             font = QColorDialog().getColor()
         self.font_ty[tty][ty] = font
 
-
     def sur_cap(self, st):
         st = st.lower()
         pass  # split sr bsased on if van in group of peplename, then caps each and join
@@ -214,14 +215,13 @@ class Window(QMainWindow):
     # def color(self):
     #     # c = self.col.exec()
 
-
     def _update_set(self):  # onpopup combo
         # open file set to these, then run normal
         print('loading_all')
         self.call_op = {'Font': [QFont.Times, QFont.Times], 'Size': [12, 11], 'Italics': [False, True],
                         'bold': [True, False], 'Capital': ['Upper', 'lower', 'as endered', 'capital', 'surname']}
-        self.setting_keys = {'Date Format', 'dd-MMM-yyyy' # y-m-d,y-d-m,d-m-y,m-d-y
-                             'Weekday Format',  # long,sort,,let
+        self.setting_keys = {'Date Format', 'dd-MMM-yyyy'  # y-m-d,y-d-m,d-m-y,m-d-y
+                                            'Weekday Format',  # long,sort,,let
                              'Start Week Format',
                              'Call Font',
                              'call Size',
@@ -247,8 +247,9 @@ class Window(QMainWindow):
         self.default_doc_pref_loc = ''  # file_path
         self.default_wins = ''
 
-    def set_date_format(self,d):
-        form = ['dd-MMM-yyyy', 'dd-mm-yyyy']  # et al
+    def set_date_format(self, d):
+        op = ['dd', 'ddd', ]
+        form = ['dd-MMM-yyyy', 'dd-mm-yyyy', 'ddd MMMM d yy', 'ddd MMMM d yy', 'dd.MM.yyyy']  # et al
         pass
 
     def _set_center(self):
@@ -630,7 +631,6 @@ class CalendarDayDelegate(QItemDelegate):
         self.par = par
         self.last_month = True
 
-
     def paint(self, painter, option, index):
 
         painter._date_flag = index.row() > 0
@@ -701,6 +701,90 @@ class ColorButton(QPushButton):
         painter = QPainter(self)
         painter.setBrush(self.par.active_col)
         painter.drawRect(rect)
+
+
+class SuperCombo(QComboBox):
+    def __init__(self, name, par, orient_v=True, vals=None, show_lab=True):
+        super().__init__()
+
+        self.par = par
+        self.orient_v = orient_v
+        self.show_lab = show_lab
+        self.name = name
+        self.wig = QWidget()
+        self.lab = QLabel(self.name)
+
+        self._layout_set()
+
+        if vals:
+            self.addItems(vals)
+
+        self.currentTextChanged.connect(lambda x: self.par.run_cmd(self.name, x))
+
+    def _layout_set(self):
+        if self.orient_v:
+            self.layout = QVBoxLayout()  # todo order
+        else:
+            self.layout = QHBoxLayout()
+        self.layout.addWidget(self)
+        self.layout.addWidget(self.lab)
+        self.wig.setLayout(self.layout)
+
+    def reset_show(self, show_lab=False, flip=False):
+        if flip:
+            self.orient_v = not self.orient_v
+            self._layout_set()
+        if show_lab:
+            self.show_lab = not self.show_lab
+            if self.show_lab:
+                self.layout.addWidget(self.lab)
+            else:
+                self.layout.removeWidget(self.lab)
+
+
+class SuperButton(QWidget):
+    def __init__(self, name, par, orient_v=True, vals=None, show_lab=True):
+        super().__init__()
+
+        self.par = par
+        self.orient_v = orient_v
+        self.show_lab = show_lab
+        self.name = name
+        self.but = {}
+        self.lab = QLabel(self.name)
+
+        if vals:
+            for i in vals:
+                j = QPushButton(i)
+                j.clicked.connect(partial(self.par.run_cmd, i))
+                self.but[i] = j
+
+        self._layout_set()
+
+    def _layout_set(self):
+        self.layout = QGridLayout()
+        n = 0
+        if self.orient_v:
+
+            for i in self.but.keys():
+                self.layout.addWidget(self.but[i], 0, n)
+                n += 1
+            self.layout.addWidget(self.lab, 1, 0, 1, n)
+        else:
+            for i in self.but.keys():
+                self.layout.addWidget(self.but[i], n, 0)
+                n += 1
+            self.layout.addWidget(self.lab, 0, 1, n, 1)
+        self.setLayout(self.layout)
+
+    def reset_show(self, show_lab=False, flip=False):
+        if flip:
+            self.orient_v = not self.orient_v
+            self._layout_set()
+        if show_lab:
+            self.show_lab = not self.show_lab
+            if not self.show_lab:
+                self.layout.removeWidget(self.lab)
 
 
 if __name__ == '__main__':

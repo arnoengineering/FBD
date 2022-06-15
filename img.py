@@ -15,6 +15,7 @@ patient_time = {'claassens': 30, 'dehlen': 20, 'lategan': 15}
 print
 email
 call_list = {}
+current vs preset
 
 walk_in_list = {}
 # tool-list: add prefernce, add away, force update, split into two docs per day,
