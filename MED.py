@@ -69,8 +69,6 @@ class Window(QMainWindow):
         # self.av = {columns=['Date']+self.cmd_ls['doc'])
         # add 'avail': {'pacient':'arno', 'room':4}
 
-
-
     def solve_doc(self):
         pass
 
@@ -182,7 +180,6 @@ class Window(QMainWindow):
             tool_layout.addWidget(lab)
             self.cal_tool_bar.addWidget(wig)
 
-
     def run_cmd(self, i, ex=None):
         print('cmd', i)
         if i == 'doc away':
@@ -265,22 +262,17 @@ class Window(QMainWindow):
     def _update_set(self):  # onpopup combo
         # open file set to these, then run normal
         print('loading_all')
-        self.call_op = {'Font': [QFont.Times, QFont.Times], 'Size': [12, 11], 'Italics': [False, True],
-                        'bold': [True, False], 'Capital': ['Upper', 'lower', 'as endered', 'capital', 'surname']}
-        self.setting_keys = {'Date Format', 'dd-MMM-yyyy'  # y-m-d,y-d-m,d-m-y,m-d-y
-                                            'Weekday Format',  # long,sort,,let
-                             'Start Week Format',
-                             'Call Font',
-                             'call Size',
-                             'call color',
-                             'call capital',  # todo itterate
-                             'walk in Font',
-                             'walk in Size',
-                             'walk in color',
-                             'Week Number',
-                             'Doc File Loc',  # todo all file locs
-                             'Window Size',
-                             'Window Loc',  # todo active widgets, size, loc
+        self.setting_keys = {'Date Format': 'dd-MMM-yyyy',  # y-m-d,y-d-m,d-m-y,m-d-y
+                            'Weekday Format': 'let',  # long,sort,,let
+                             'Start Week Format': 'Sun',
+                             'Mode': 'Single',
+                             'Week Number': True,
+                             'Doc File Loc': {'Doc Pref': '', 'doc act': ''},
+                             'Active Doc': 'Dehlen',
+                             'Active Wig': 'cal',
+                             'Setting Mode': 'Call',
+
+
                              }
         for ke in self.settings.allKeys():
             val = self.settings.value(ke, 10)  # todo add others add functions on soime vals_ try....
@@ -288,11 +280,6 @@ class Window(QMainWindow):
             print(f'key, val: {ke}, {val}')
             # todo save special, load on default or last, use create settings dialog based on initial creation
             # self.__setattr__(ke_new, val)
-        self.week_mum = False
-        self.default_scedule_loc = ''  # file_path
-        self.default_doc_list_loc = ''  # file_path
-        self.default_doc_pref_loc = ''  # file_path
-        self.default_wins = ''
 
     def set_date_format(self, d):
         op = ['dd', 'ddd', ]
