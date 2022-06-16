@@ -30,9 +30,9 @@ class Window(QMainWindow):
         self.test_doc()
         self._set_center()
         self._set_clinic()
-        self._create_tools()
 
         self._creat_toolbar()
+        self._create_tools()
 
     def start_up_promt(self):
         # todo add dialog with load defults or user, show on startup?
@@ -47,7 +47,8 @@ class Window(QMainWindow):
                        'Setting Mode': ['Call', 'WI', 'Away', 'Here']}
 
         self.wn = 'Show/Hide Weeknumbers'
-        self.button_list = ['solve', self.wn, 'Today', 'Apply', 'Save', 'Load']
+        self.button_list = ['solve', self.wn, 'Today', 'Apply', 'Save', 'Load', 'Add']  # todo logos and split
+        # todo border
 
         self.date_n = ['StartDate', 'EndDate']
 
@@ -64,66 +65,14 @@ class Window(QMainWindow):
     def _set_dataframes(self):
         self.schedul = pd.DataFrame(columns=['Date', 'Call', 'WI'])
         self.doc_data = pd.DataFrame.from_records(self.docs)
-        self.cmd_ls['doc'] = self.doc_data['Name']
+        self.cmd_ls['Active Doc'] = self.doc_data['Name']
         # self.av = {columns=['Date']+self.cmd_ls['doc'])
         # add 'avail': {'pacient':'arno', 'room':4}
 
-    def set_combo(self, in_ls, out_ls, n=0, m=0, func=None):
-        if not func:
-            func = self.run_cmd
-        for wig_name, opt in in_ls.items():
-            lab = QLabel(wig_name)
-            print('i', wig_name)
-            k = QComboBox()
-            k.addItems(opt)
-            k.setCurrentText(opt[0])
-            k.currentTextChanged.connect(lambda x: func(wig_name, x))
-            out_ls[wig_name] = k
-            self.tool_layout.addWidget(lab, m, n)
-            self.tool_layout.addWidget(k, m + 1, n)
-            n += 1
-            if n > 4:
-                m += 2
-                n = 0
-        return n, m
+
 
     def solve_doc(self):
         pass
-
-    def set_norm(self, in_ls, out_ls, n=0, m=0, func=None, ty='but'):
-
-        if not func:
-            func = self.run_cmd
-        if ty == 'but':
-            for wig_name in in_ls:
-                k = QPushButton(wig_name)
-                out_ls[wig_name] = k
-                self.tool_layout.addWidget(k, m, n)
-                k.clicked.connect(partial(func, wig_name))
-                n += 1
-
-                if n > 4:
-                    m += 1
-                    n = 0
-
-        elif ty == 'da':
-            for wig_name in in_ls:
-                lab = QLabel(wig_name)
-                print('i', wig_name)
-                da = QDateEdit()
-                da.setDate(QDate.currentDate())
-                da.setCalendarPopup(True)
-                da.dateChanged.connect(lambda x: func(x))
-                # da.bud
-                out_ls[wig_name] = da
-                self.tool_layout.addWidget(lab, m, n)
-                self.tool_layout.addWidget(da, m + 1, n)
-                n += 1
-
-                if n > 4:
-                    m += 2
-                    n = 0
-        return n, m
 
     def _creat_toolbar(self):
         self.font_sizes = [7, 8, 9, 10, 11, 12, 13, 14, 18, 24, 36, 48, 64, 72, 96, 144, 288]
@@ -134,9 +83,7 @@ class Window(QMainWindow):
         self.table_tool = QToolBar('Tables')
         self.col = QColorDialog()
 
-        self.font_wig = {'Font': QFontComboBox(), 'Size': QComboBox(), 'Capital': QComboBox()}
-
-        self.cap_op = ['As Entered', 'UPPERCASE', 'lowercase' 'Capitalize', 'SurName']
+        self.cap_op = ['As Entered', 'UPPERCASE', 'lowercase', 'Capitalize', 'SurName']
         self.font_ty = {'Call': {'Font': QFont("Times"), 'Size': self.font_sizes[3],
                                  'Capital': self.cap_op[3], 'Color': Qt.blue},
                         'WI': {'Font': QFont("Times"), 'Size': self.font_sizes[0],
@@ -153,11 +100,13 @@ class Window(QMainWindow):
         self.but_edit = {}
         self.font_ty_win = {}
 
-        self.save_op = SuperButton('File Options', self, vals=['save', 'load', 'add'])
+        self.save_op = SuperButton('File Options', self, vals=self.button_list)
         self.font_head = SuperButton('Style Options', self, vals=['B', 'I', 'U'])
         self.tool_bar.addWidget(self.save_op)
         self.tool_bar.addWidget(self.font_head)
-
+        self.font_wig = {'Font': QFontComboBox(),
+                         'Size': SuperCombo('Size',self, vals=[str(x) for x in self.font_sizes], run=False),
+                         'Capital': SuperCombo('Capital',self, vals=self.cap_op, run=False)}
         # for it in tb_op:
         #     j = QPushButton(it)
         #     # j.setIcon(self.img_loc+it)
@@ -165,92 +114,24 @@ class Window(QMainWindow):
         #     self.but_edit[it] = j
         #     self.tool_bar.addWidget(j)
 
-        self.addToolBar(self.tool_bar)
         self.but_edit['color'] = ColorButton('Color', self)
         self.tool_bar.addWidget(self.but_edit['color'])
 
-        self.font_wig['Capital'].addItems(self.cap_op)
-        self.font_wig['Capital'].currentIndexChanged.connect(self.set_cap)
-
+        self.font_wig['Capital'].currentIndexChanged.connect(lambda x: self.set_active_font(x,'Capital'))
+        self.font_wig['Size'].currentTextChanged.connect(lambda x: self.set_active_font(x, 'Size'))
         self.font_wig['Font'].currentFontChanged.connect(self.set_active_font)
-        self.font_wig['Size'].addItems([str(x) for x in self.font_sizes])  # todo add user val check if int and user val
 
-        for i in self.font_wig.values():
-            self.tool_bar.addWidget(i)
+        for k, i in self.font_wig.items():
+            if k == 'Font':
+                self.tool_bar.addWidget(i)
+            else:
+                self.tool_bar.addWidget(i.wig)
 
         # for selectic cal or walkin to edit, disable if not on cal, add conditional to tables
         self.font_edit = SuperCombo('FontEdit', self, vals=['Call', 'WI'])
         self.tool_bar.addWidget(self.font_edit.wig)
 
-    def set_active_wig(self, wig):
-        self.active_wig = wig
-        print(f'Window ({wig}) is now active')
-        self.font_edit.setEnabled(wig == 'Cal')
-
-    def set_active_font(self, font=None, ty='Font'):
-
-        print('running activefont')
-
-        if self.font_edit.isEnabled():
-            tty = self.font_edit.currentText()
-
-        else:
-            tty = self.active_wig
-        if ty == 'Color':
-            self.col.setCurrentColor(self.font_ty[tty][ty])
-            font = QColorDialog().getColor()
-        self.font_ty[tty][ty] = font
-
-    def sur_cap(self, st):
-        st = st.lower()
-        pass  # split sr bsased on if van in group of peplename, then caps each and join
-
-    def set_cap(self, i):
-        ty = self.font_edit.currentText()
-        if i < 5:  # enum
-            self.font_style[ty] = i
-        else:  # todo return func, but thewn have to run on calendar loop
-            pass
-
-    # def color(self):
-    #     # c = self.col.exec()
-
-    def _update_set(self):  # onpopup combo
-        # open file set to these, then run normal
-        print('loading_all')
-        self.call_op = {'Font': [QFont.Times, QFont.Times], 'Size': [12, 11], 'Italics': [False, True],
-                        'bold': [True, False], 'Capital': ['Upper', 'lower', 'as endered', 'capital', 'surname']}
-        self.setting_keys = {'Date Format', 'dd-MMM-yyyy'  # y-m-d,y-d-m,d-m-y,m-d-y
-                                            'Weekday Format',  # long,sort,,let
-                             'Start Week Format',
-                             'Call Font',
-                             'call Size',
-                             'call color',
-                             'call capital',  # todo itterate
-                             'walk in Font',
-                             'walk in Size',
-                             'walk in color',
-                             'Week Number',
-                             'Doc File Loc',  # todo all file locs
-                             'Window Size',
-                             'Window Loc',  # todo active widgets, size, loc
-                             }
-        for ke in self.settings.allKeys():
-            val = self.settings.value(ke, 10)  # todo add others add functions on soime vals_ try....
-            ke_new = ke.lower().replace(' ', '_')  # todo change  so defalt vas in dict
-            print(f'key, val: {ke}, {val}')
-            # todo save special, load on default or last, use create settings dialog based on initial creation
-            # self.__setattr__(ke_new, val)
-        self.week_mum = False
-        self.default_scedule_loc = ''  # file_path
-        self.default_doc_list_loc = ''  # file_path
-        self.default_doc_pref_loc = ''  # file_path
-        self.default_wins = ''
-
-    def set_date_format(self, d):
-        op = ['dd', 'ddd', ]
-        form = ['dd-MMM-yyyy', 'dd-mm-yyyy', 'ddd MMMM d yy', 'ddd MMMM d yy', 'dd.MM.yyyy']  # et al
-        pass
+        self.addToolBar(self.tool_bar)
 
     def _set_center(self):
         self.cal_wig = Calendar(self)
@@ -264,6 +145,8 @@ class Window(QMainWindow):
         self.clinic_wig = DocStatus(self, 'Live Clinic', Qt.LeftDockWidgetArea)
 
     def _create_tools(self):
+        self.tool_bar2 = QToolBar()
+
         self.tool_wig = QWidget()
         self.tool_dock = QDockWidget('Tools')
         self.tool_dock.setWidget(self.tool_wig)
@@ -271,20 +154,34 @@ class Window(QMainWindow):
         self.addDockWidget(Qt.LeftDockWidgetArea, self.tool_dock)
 
         self.tool_layout = QGridLayout()
-
         self.tool_wig.setLayout(self.tool_layout)
 
+        self.addToolBar(self.tool_bar2)
+        self.addToolBar(self.cal_tool_bar)
+
         # ___________comboboxes_______
-        self.doc_select_box = QComboBox()
-        self.selet_mode = QComboBox()
 
-        n = 0
-        m = 0
+        for wig_name, opt in self.cmd_ls.items():
+            k = SuperCombo(wig_name, self,vals=opt)
+            self.typ_c[wig_name] = k
+            self.tool_bar2.addWidget(k.wig)
 
-        n, m = self.set_norm(self.button_list, self.typ_c, n, m)
-        n, m = self.set_combo(self.cmd_ls, self.typ_c, n, m)
+        # todo add supercombo
+        for wig_name in self.date_n:
+            lab = QLabel(wig_name)
+            print('i', wig_name)
+            da = QDateEdit()
+            da.setDate(QDate.currentDate())
+            da.setCalendarPopup(True)
+            da.dateChanged.connect(lambda x: self.cal_wig.update_date(x))
+            self.date_list[wig_name] = da
+            tool_layout = QVBoxLayout()
+            wig = QWidget()
+            wig.setLayout(tool_layout)
+            tool_layout.addWidget(da)
+            tool_layout.addWidget(lab)
+            self.cal_tool_bar.addWidget(wig)
 
-        self.set_norm(self.date_n, self.date_list, n, m, self.cal_wig.update_date, ty='da')
 
     def run_cmd(self, i, ex=None):
         print('cmd', i)
@@ -298,7 +195,7 @@ class Window(QMainWindow):
 
         elif i == 'Setting Mode':
             self.set_mode = ex
-        elif i == 'doc':
+        elif i == 'Active':
             self.active_doc = ex
             self.cen.update_active(ex)
         elif i == self.wn:
@@ -339,6 +236,69 @@ class Window(QMainWindow):
             df = pd.DataFrame([df_l], columns=['Date', 'Call', 'WI'])
             self.schedul = pd.concat([self.schedul, df], ignore_index=True)
 
+    def set_active_wig(self, wig):
+        self.active_wig = wig
+        print(f'Window ({wig}) is now active')
+        self.font_edit.setEnabled(wig == 'Cal')
+
+    def set_active_font(self, font=None, ty='Font'):
+
+        print('running activefont')
+
+        if self.font_edit.isEnabled():
+            tty = self.font_edit.currentText()
+
+        else:
+            tty = self.active_wig
+        if ty == 'Capital':
+            if font < 5:  # enum
+                self.font_ty[tty][ty] = self.cap_op[font]
+        else:
+            if ty == 'Color':
+                self.col.setCurrentColor(self.font_ty[tty][ty])
+                font = QColorDialog().getColor()
+            elif ty == 'Size':
+                font = int(font)
+
+            self.font_ty[tty][ty] = font
+
+    def _update_set(self):  # onpopup combo
+        # open file set to these, then run normal
+        print('loading_all')
+        self.call_op = {'Font': [QFont.Times, QFont.Times], 'Size': [12, 11], 'Italics': [False, True],
+                        'bold': [True, False], 'Capital': ['Upper', 'lower', 'as endered', 'capital', 'surname']}
+        self.setting_keys = {'Date Format', 'dd-MMM-yyyy'  # y-m-d,y-d-m,d-m-y,m-d-y
+                                            'Weekday Format',  # long,sort,,let
+                             'Start Week Format',
+                             'Call Font',
+                             'call Size',
+                             'call color',
+                             'call capital',  # todo itterate
+                             'walk in Font',
+                             'walk in Size',
+                             'walk in color',
+                             'Week Number',
+                             'Doc File Loc',  # todo all file locs
+                             'Window Size',
+                             'Window Loc',  # todo active widgets, size, loc
+                             }
+        for ke in self.settings.allKeys():
+            val = self.settings.value(ke, 10)  # todo add others add functions on soime vals_ try....
+            ke_new = ke.lower().replace(' ', '_')  # todo change  so defalt vas in dict
+            print(f'key, val: {ke}, {val}')
+            # todo save special, load on default or last, use create settings dialog based on initial creation
+            # self.__setattr__(ke_new, val)
+        self.week_mum = False
+        self.default_scedule_loc = ''  # file_path
+        self.default_doc_list_loc = ''  # file_path
+        self.default_doc_pref_loc = ''  # file_path
+        self.default_wins = ''
+
+    def set_date_format(self, d):
+        op = ['dd', 'ddd', ]
+        form = ['dd-MMM-yyyy', 'dd-mm-yyyy', 'ddd MMMM d yy', 'ddd MMMM d yy', 'dd.MM.yyyy']  # et al
+        pass
+
     def closeEvent(self, event):
 
         self.settings.setValue("Geometry", self.saveGeometry())
@@ -373,6 +333,7 @@ class Calendar(QCalendarWidget):
         self._init_high()
 
     def mousePressEvent(self, event):
+        print('clicked cal')
         self.par.set_active_wig('Cal')
 
     def _init_high(self):
@@ -433,6 +394,7 @@ class Calendar(QCalendarWidget):
             fr_ls(date, *ap1)
 
         self.print_selected(self.highlight_format)
+        self.par.set_active_wig('Cal')
 
     def update_date(self, date):
         self.print_selected(QTextCharFormat())
@@ -704,7 +666,7 @@ class ColorButton(QPushButton):
 
 
 class SuperCombo(QComboBox):
-    def __init__(self, name, par, orient_v=True, vals=None, show_lab=True):
+    def __init__(self, name, par, orient_v=True, vals=None, show_lab=True, run=True):
         super().__init__()
 
         self.par = par
@@ -716,10 +678,11 @@ class SuperCombo(QComboBox):
 
         self._layout_set()
 
-        if vals:
+        if vals is not None:
             self.addItems(vals)
 
-        self.currentTextChanged.connect(lambda x: self.par.run_cmd(self.name, x))
+        if run:
+            self.currentTextChanged.connect(lambda x: self.par.run_cmd(self.name, x))
 
     def _layout_set(self):
         if self.orient_v:
