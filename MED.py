@@ -1,4 +1,4 @@
-from PyQt5.QtGui import QFont, QTextCharFormat, QPalette, QPainter  # QPainter, QPen,QBrush,
+from PyQt5.QtGui import QFont, QTextCharFormat, QPalette, QPainter, QColor  # QPainter, QPen,QBrush,
 from PyQt5.QtCore import Qt, QDate, QSettings, QRect  # QTimer, QSize,
 # from logging import exception
 from PyQt5.QtWidgets import *
@@ -19,11 +19,13 @@ class Window(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Call Schedule Optimizer')
+
         self.settings = QSettings('Claassens Software', 'Calling LLB_2022')
-        self.start_up_promt()
-        self._update_set()
+        # self._start_up_promt()
+
         self._set_list()
         self._set_empty()
+        self.set_date_format()
 
         self._set_dataframes()
 
@@ -33,18 +35,35 @@ class Window(QMainWindow):
 
         self._creat_toolbar()
         self._create_tools()
+        self._update_set()
 
-    def start_up_promt(self):
+    def _start_up_promt(self):
         # todo add dialog with load defults or user, show on startup?
-        pass
+        setting = QSettings('Claassens Software', 'Calling LLB_2022_open')
+        show_startup = setting.value('startup', True)
+        if show_startup:
+            st = StartupDialog(self)
+            self.load_d = st.exec()
+        else:
+            self.load_d = setting.value('default', True)  # per user, load last session
+
+        if self.load_d:
+            j = 'Calling LLB_2022'
+        else:
+            j = 'User Saved'
+        self.settings = QSettings('Claassens Software', j)
+        # at last
+
 
     def _set_list(self):
         self.docs = [{'Name': 'Dehlen', 'status': 'away', 'ontime delta': '-', 'patients behind': 0},
                      {'Name': 'lategan', 'status': 'here', 'ontime delta': 't+30', 'patients behind': 2}]
 
         self.cmd_ls = {'Mode': ['Single', 'Range'],
-                       'Weekday Start': ['Sun', 'Mon'],
-                       'Setting Mode': ['Call', 'WI', 'Away', 'Here']}
+                       'Start Week Format': ['Sun', 'Mon'],
+                       'Setting Mode': ['Call', 'WI', 'Away', 'Here'],
+                       'Date Format': [],
+                       'Weekday Format': ['let', '3let', 'Full']}
 
         self.wn = 'Show/Hide Weeknumbers'
         self.button_list = ['solve', self.wn, 'Today', 'Apply', 'Save', 'Load', 'Add']  # todo logos and split
@@ -55,12 +74,12 @@ class Window(QMainWindow):
     def _set_empty(self):
         self.set_mode = None
         self.active_col = Qt.black
-        self.active_doc = self.docs[0]['Name']
+        # self.active_doc = self.docs[0]['Name']
         self.date_list = {}
         self.av = {}
         self.list_v = {}
         self.action_list = {}
-        self.typ_c = {}
+        self.combo = {}
 
     def _set_dataframes(self):
         self.schedul = pd.DataFrame(columns=['Date', 'Call', 'WI'])
@@ -82,17 +101,6 @@ class Window(QMainWindow):
         self.col = QColorDialog()
 
         self.cap_op = ['As Entered', 'UPPERCASE', 'lowercase', 'Capitalize', 'SurName']
-        self.font_ty = {'Call': {'Font': QFont("Times"), 'Size': self.font_sizes[3],
-                                 'Capital': self.cap_op[3], 'Color': Qt.blue},
-                        'WI': {'Font': QFont("Times"), 'Size': self.font_sizes[0],
-                               'Capital': self.cap_op[0], 'Color': Qt.black},
-                        'Doc Stats': {'Font': QFont("Times"), 'Size': self.font_sizes[1],
-                                      'Capital': self.cap_op[0], 'Color': Qt.black},
-                        'Dayly Stats': {'Font': QFont("Times"), 'Size': self.font_sizes[0],
-                                        'Capital': self.cap_op[0], 'Color': Qt.black},
-                        'Live Clinic': {'Font': QFont("Times"), 'Size': self.font_sizes[2],
-                                        'Capital': self.cap_op[0], 'Color': Qt.black}
-                        }
 
         self.font_op = []
         self.but_edit = {}
@@ -100,11 +108,12 @@ class Window(QMainWindow):
 
         self.save_op = SuperButton('File Options', self, vals=self.button_list)
         self.font_head = SuperButton('Style Options', self, vals=['B', 'I', 'U'])
+
         self.tool_bar.addWidget(self.save_op)
         self.tool_bar.addWidget(self.font_head)
         self.font_wig = {'Font': QFontComboBox(),
-                         'Size': SuperCombo('Size',self, vals=[str(x) for x in self.font_sizes], run=False),
-                         'Capital': SuperCombo('Capital',self, vals=self.cap_op, run=False)}
+                         'Size': SuperCombo('Size', self, vals=[str(x) for x in self.font_sizes], run=False),
+                         'Capital': SuperCombo('Capital', self, vals=self.cap_op, run=False)}
         # for it in tb_op:
         #     j = QPushButton(it)
         #     # j.setIcon(self.img_loc+it)
@@ -115,7 +124,7 @@ class Window(QMainWindow):
         self.but_edit['color'] = ColorButton('Color', self)
         self.tool_bar.addWidget(self.but_edit['color'])
 
-        self.font_wig['Capital'].currentIndexChanged.connect(lambda x: self.set_active_font(x,'Capital'))
+        self.font_wig['Capital'].currentIndexChanged.connect(lambda x: self.set_active_font(x, 'Capital'))
         self.font_wig['Size'].currentTextChanged.connect(lambda x: self.set_active_font(x, 'Size'))
         self.font_wig['Font'].currentFontChanged.connect(self.set_active_font)
 
@@ -160,11 +169,10 @@ class Window(QMainWindow):
         # ___________comboboxes_______
 
         for wig_name, opt in self.cmd_ls.items():
-            k = SuperCombo(wig_name, self,vals=opt)
-            self.typ_c[wig_name] = k
+            k = SuperCombo(wig_name, self, vals=opt)
+            self.combo[wig_name] = k
             self.tool_bar2.addWidget(k.wig)
 
-        # todo add supercombo
         for wig_name in self.date_n:
             lab = QLabel(wig_name)
             print('i', wig_name)
@@ -186,14 +194,17 @@ class Window(QMainWindow):
             print('date, doc away')
             # set doc away
         elif i == 'Mode':
-            self.cal_wig.swap_select_mode(self.typ_c[i].currentText())
+            self.cal_wig.swap_select_mode(self.combo[i].currentText())
         elif i == 'solve':
             self.solver.run_scedual()
 
-        elif i == 'Setting Mode':
-            self.set_mode = ex
+        # elif i == 'Setting Mode':
+        #     self.set_mode = ex
+        elif i == 'Date Format':
+            for r in self.date_list.values():
+                r.setDisplayFormat(ex)
         elif i == 'Active':
-            self.active_doc = ex
+            # self.active_doc = ex
             self.cen.update_active(ex)
         elif i == self.wn:
             # QCalendarWidget.noVer
@@ -207,7 +218,7 @@ class Window(QMainWindow):
 
     def run_doc_solve(self):
         for day in self.cal_wig.full_date_list:
-            print(f'Day {day}, doc {self.typ_c["doc"].currentText()}, status {self.set_mode}')
+            print(f'Day {day}, doc {self.combo["doc"].currentText()}, status {self.set_mode}')
             # self.av[day][self.active_doc]['Status'] = self.set_mode
         # doc_on_day()
 
@@ -259,46 +270,119 @@ class Window(QMainWindow):
 
             self.font_ty[tty][ty] = font
 
-    def _update_set(self):  # onpopup combo
-        # open file set to these, then run normal
+    def _update_set(
+            self):  # onpopup combo # todo types todo change  so defalt vas in dict# todo save special, load on default or last, use create settings dialog based on initial creation
+        # open file set to these, then run normal# todo add others add functions on soime vals_ try....# todo add others add functions on soime vals_ try....
+        # self.__setattr__(ke_new, val)'Week Number': True,'Active Wig': 'Cal',
+        # 'Doc File Loc': {'Doc Pref': '', 'doc act': ''},
         print('loading_all')
-        self.setting_keys = {'Date Format': 'dd-MMM-yyyy',  # y-m-d,y-d-m,d-m-y,m-d-y
-                            'Weekday Format': 'let',  # long,sort,,let
-                             'Start Week Format': 'Sun',
-                             'Mode': 'Single',
-                             'Week Number': True,
-                             'Doc File Loc': {'Doc Pref': '', 'doc act': ''},
-                             'Active Doc': 'Dehlen',
-                             'Active Wig': 'cal',
-                             'Setting Mode': 'Call',
+        self.setting_keys_combo = {'Date Format': 'dd-MMM-yyyy',  # y-m-d,y-d-m,d-m-y,m-d-y
+                                   'Weekday Format': 'let',  # long,sort,,let
+                                   'Start Week Format': 'Sun',
+                                   'Mode': 'Single',
+                                   'Active Doc': 'Dehlen',
+                                   'Setting Mode': 'Call',
+                                   }
 
+        self.font_ty_default = {'Call': {'Font': QFont("Times"), 'Size': self.font_sizes[3],
+                                         'Capital': self.cap_op[3], 'Color': QColor(Qt.blue)},
+                                'WI': {'Font': QFont("Times"), 'Size': self.font_sizes[0],
+                                       'Capital': self.cap_op[0], 'Color': QColor(Qt.black)},
+                                'Doc Stats': {'Font': QFont("Times"), 'Size': self.font_sizes[1],
+                                              'Capital': self.cap_op[0], 'Color': QColor(Qt.black)},
+                                'Dayly Stats': {'Font': QFont("Times"), 'Size': self.font_sizes[0],
+                                                'Capital': self.cap_op[0], 'Color': QColor(Qt.black)},
+                                'Live Clinic': {'Font': QFont("Times"), 'Size': self.font_sizes[2],
+                                                'Capital': self.cap_op[0], 'Color': QColor(Qt.black)}
+                                }
 
-                             }
-        for ke in self.settings.allKeys():
-            val = self.settings.value(ke, 10)  # todo add others add functions on soime vals_ try....
-            ke_new = ke.lower().replace(' ', '_')  # todo change  so defalt vas in dict
+        self.settings.beginGroup('combo')
+
+        for ke, v in self.setting_keys_combo.items():
+            val = self.settings.value(ke, v)
+            self.combo[ke].setCurrentText(val)
+            # ke_new = ke.lower().replace(' ', '_')  #
             print(f'key, val: {ke}, {val}')
-            # todo save special, load on default or last, use create settings dialog based on initial creation
-            # self.__setattr__(ke_new, val)
 
-    def set_date_format(self, d):
-        op = ['dd', 'ddd', ]
-        form = ['dd-MMM-yyyy', 'dd-mm-yyyy', 'ddd MMMM d yy', 'ddd MMMM d yy', 'dd.MM.yyyy']  # et al
-        pass
+        self.settings.endGroup()
+
+        self.font_ty = {}
+        self.settings.beginGroup('font')
+        for ke, v in self.font_ty_default.items():
+            val = {}
+            self.settings.beginGroup(ke)
+            for vi in v.keys():
+                val[vi] = self.settings.value(vi, v[vi])  # todo add others add functions on soime vals_ try....
+
+            self.font_ty[ke] = val
+            self.settings.endGroup()
+        self.settings.endGroup()
+
+        print('res')
+        self.restoreGeometry(self.settings.value("Geometry"))
+        self.restoreState(self.settings.value("windowState"))
+
+        # for child in self.findChildren((Calendar, DocStatus)):
+        #     print(' child found to be read: ', child)
+        #     self.settings.beginGroup(child.objectName())
+        #     child.restoreGeometry(self.settings.value("Geometry"))
+        #     self.settings.endGroup()
+
+    def set_date_format(self):
+        conect = ['.', '/', ',', '-', ' ']  # todo dialog+commpn
+        y = 'yyyy'
+        j = []
+        for co in conect:
+            for yf in range(2):
+                for day in range(2, 4):
+                    di = "d" * day
+                    for mon in range(2, 5):
+                        mo = "M" * mon
+                        f = [di, mo]
+                        for i in range(2):
+                            if day == 3 and i == 0:
+                                st = [f'{di}{co}d{co}{mo}',
+                                      f'{di}{co}{mo}{co}d']
+                            else:
+                                st = [f'{f[i]}{co}{f[(i + 1) % 2]}']
+                            if yf == 0:
+                                j.extend(f'{y}{co}{si}' for si in st)
+                            else:
+                                j.extend(f'{si}{co}{y}' for si in st)
+        print(j)
+
+        self.cmd_ls['Date Format'] = j
 
     def closeEvent(self, event):
-
+        self.load_d = True # todo rep
         self.settings.setValue("Geometry", self.saveGeometry())
         self.settings.setValue("windowState", self.saveState())
 
-        for child in self.findChildren((Calendar, DocStatus)):
-            print(' child found to be logged: ', child)
-            self.settings.beginGroup(child.objectName())
-            self.settings.setValue("Geometry", child.saveGeometry())
-            # self.settings.setValue("windowState", child.saveState())
+        if self.load_d:
+            self.settings.beginGroup('combo')
+            # todo allways update some not others
+            for ke in self.setting_keys_combo.keys():
+                val = self.combo[ke].currentText()
+                self.settings.setValue(ke, val)
+                print(f'key, val: {ke}, {val}')
             self.settings.endGroup()
-        self.settings.sync()
-        event.accept()
+
+            self.settings.beginGroup('font')
+            for ke, v in self.font_ty_default.items():
+                self.settings.beginGroup(ke)
+                for vi in v.keys():
+                    self.settings.setValue(vi, v[vi])  # todo add others add functions on soime vals_ try....
+                self.settings.endGroup()
+            self.settings.endGroup()
+
+            # for child in self.findChildren((Calendar, DocStatus)):
+            #     print(' child found to be logged: ', child)
+            #     self.settings.beginGroup(child.objectName())
+            #     self.settings.setValue("Geometry", child.saveGeometry())
+            #     # self.settings.setValue("windowState", child.saveState())
+            #     self.settings.endGroup()
+            # self.settings.sync()
+            super().closeEvent(event)
 
 
 class Calendar(QCalendarWidget):
@@ -306,9 +390,7 @@ class Calendar(QCalendarWidget):
         super().__init__()
         self.par = par
         self.st_h = 1
-        # self.less = 5
-        # self.startdate = None
-        # self.endate = None
+
         self.sel = 'Single'
 
         self.full_date_list = [QDate.currentDate(), QDate.currentDate()]
@@ -366,7 +448,7 @@ class Calendar(QCalendarWidget):
             else:
                 self.full_date_list = date_v_l
 
-        if self.sel == 'Range':
+        if self.par.combo['Mode'].currentText() == 'Range':
             self.update_date(date)
         else:
             self.print_selected(QTextCharFormat())
@@ -404,7 +486,6 @@ class Calendar(QCalendarWidget):
             self.setDateTextFormat(date, form)
 
     def swap_select_mode(self, mo):
-        self.sel = mo
         if mo == 'Range':
             en = True
 
@@ -473,7 +554,7 @@ class DocStatus(QTableWidget):  # self.doc_dataframe_items
         if row_n == 0:
             self.sort_by(col_n)
         r_n = self.item(row_n, 0).text()
-        self.par.typ_c['doc'].setCurrentText(r_n)
+        self.par.combo['doc'].setCurrentText(r_n)
 
     def sort_by(self, col):
         new_col = self.horizontalHeaderItem(col).text()
@@ -735,6 +816,53 @@ class SuperButton(QWidget):
             self.show_lab = not self.show_lab
             if not self.show_lab:
                 self.layout.removeWidget(self.lab)
+
+
+class StartupDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setModal(True)
+        self.setWindowTitle("Settings Load")
+        self.layout = QVBoxLayout()
+        self.head = QLabel('Calling Open')
+        self.head.setAlignment(Qt.AlignCenter)
+
+        self.layout.addWidget(self.head)
+
+        self.checkBox = QCheckBox("show on startup?")
+
+        self.layout.addWidget(self.checkBox)
+
+        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
+
+        self.layout.addItem(self.verticalSpacer)
+
+        self.ques = QLabel("Load Default values?")
+        self.layout.addWidget(self.ques)
+
+        self.buttonBox = QDialogButtonBox(self.verticalLayoutWidget)
+        self.buttonBox.setObjectName(u"buttonBox")
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.No|QDialogButtonBox.Yes)
+
+        self.layout.addWidget(self.buttonBox)
+
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+    def loadr(self,fun):
+        def wr():
+            self.par.reshow = self.checkBox.isChecked()
+            return fun
+        return wr
+
+    def accept(self):
+        self.par.reshow = self.checkBox.isChecked()
+
+    def reject(self):
+        self.par.reshow = self.checkBox.isChecked()
+    # retranslateUi
+
 
 
 if __name__ == '__main__':
