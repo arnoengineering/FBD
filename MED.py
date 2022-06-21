@@ -80,7 +80,7 @@ class Window(QMainWindow):
         self.font_sizes = [7, 8, 9, 10, 11, 12, 13, 14, 18, 24, 36, 48, 64, 72, 96, 144, 288]
         # self.img_loc = self.file_loc + '/img/'
         self.tool_bar = QToolBar('Main toolbar')
-        self.cal_tool_bar = QToolBar('Calendar')  # todo add docs swap: bold underline, italic, save load, dload lego
+        self.cal_tool_bar = QToolBar('Calendar')
 
         self.table_tool = QToolBar('Tables')
         self.col = QColorDialog()
@@ -316,7 +316,7 @@ class Window(QMainWindow):
         #     self.settings.endGroup()
 
     def set_date_format(self):
-        conect = ['.', '/', ',', '-', ' ']  # todo dialog+commpn
+        conect = ['.', '/', ',', '-', ' ']
         y = 'yyyy'
         j = []
         for co in conect:
@@ -366,7 +366,7 @@ class Window(QMainWindow):
             setting.setValue('Show on Startup', self.on_start)
 
     def closeEvent(self, event):
-        # self.load_d = True # todo rep
+
         self.user_settings(self.load_d)
         super().closeEvent(event)
 
@@ -683,7 +683,7 @@ class CalendarDayDelegate(QItemDelegate):
                 d = self.par.par.font_ty
 
                 for n, i in enumerate(['Call', 'WI']):
-                    painter.setPen(d[i]['Color'])  # todo seettting to dict
+                    painter.setPen(d[i]['Color'])
                     font = d[i]['Font']
                     font.setPixelSize(d[i]['Size'])
                     QFont()
@@ -715,7 +715,7 @@ class ColorButton(QPushButton):
         rect.moveTo(self.rect().bottomRight() - rect.bottomRight())
 
         painter = QPainter(self)
-        painter.setBrush(self.par.active_col)
+        painter.setBrush(self.par.active_col)  # todo fix
         painter.drawRect(rect)
 
 
@@ -738,10 +738,10 @@ class SuperCombo(QComboBox):
         if run:
             self.currentTextChanged.connect(lambda x: self.par.run_cmd(self.name, x))
 
+    # noinspection PyArgumentList
     def _layout_set(self):
         if self.orient_v:
-            self.layout = QVBoxLayout()  # todo order
-        else:
+            self.layout = QVBoxLayout()
             self.layout = QHBoxLayout()
         self.layout.addWidget(self)
         self.layout.addWidget(self.lab)
