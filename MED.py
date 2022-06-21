@@ -20,7 +20,9 @@ class Window(QMainWindow):
         super().__init__()
         self.setWindowTitle('Call Schedule Optimizer')
 
-        self.settings = QSettings('Claassens Software', 'Calling LLB_2022')
+        # self.settings = QSettings('Claassens Software', 'Calling LLB_2022')
+
+    def showEvent(self, event):
         # self._start_up_promt()
 
         self._set_list()
@@ -36,24 +38,7 @@ class Window(QMainWindow):
         self._creat_toolbar()
         self._create_tools()
         self._update_set()
-
-    def _start_up_promt(self):
-        # todo add dialog with load defults or user, show on startup?
-        setting = QSettings('Claassens Software', 'Calling LLB_2022_open')
-        show_startup = setting.value('startup', True)
-        if show_startup:
-            st = StartupDialog(self)
-            self.load_d = st.exec()
-        else:
-            self.load_d = setting.value('default', True)  # per user, load last session
-
-        if self.load_d:
-            j = 'Calling LLB_2022'
-        else:
-            j = 'User Saved'
-        self.settings = QSettings('Claassens Software', j)
-        # at last
-
+        super().showEvent(event)
 
     def _set_list(self):
         self.docs = [{'Name': 'Dehlen', 'status': 'away', 'ontime delta': '-', 'patients behind': 0},
@@ -151,6 +136,7 @@ class Window(QMainWindow):
         self.day_stat = DocStatus(self, 'Dayly Stats')
         self.clinic_wig = DocStatus(self, 'Live Clinic', Qt.LeftDockWidgetArea)
 
+    # noinspection PyArgumentList
     def _create_tools(self):
         self.tool_bar2 = QToolBar()
 
@@ -317,10 +303,11 @@ class Window(QMainWindow):
             self.font_ty[ke] = val
             self.settings.endGroup()
         self.settings.endGroup()
-
+        k =self.settings.allKeys()
         print('res')
-        self.restoreGeometry(self.settings.value("Geometry"))
-        self.restoreState(self.settings.value("windowState"))
+        for i,j in [(self.restoreGeometry, "Geometry"), (self.restoreState, "windowState")]:
+            if j in k:
+                i(self.settings.value(j))
 
         # for child in self.findChildren((Calendar, DocStatus)):
         #     print(' child found to be read: ', child)
@@ -353,12 +340,11 @@ class Window(QMainWindow):
 
         self.cmd_ls['Date Format'] = j
 
-    def closeEvent(self, event):
-        self.load_d = True # todo rep
+    def user_settings(self,last_ses=True):
         self.settings.setValue("Geometry", self.saveGeometry())
         self.settings.setValue("windowState", self.saveState())
 
-        if self.load_d:
+        if last_ses:
             self.settings.beginGroup('combo')
             # todo allways update some not others
             for ke in self.setting_keys_combo.keys():
@@ -375,14 +361,14 @@ class Window(QMainWindow):
                 self.settings.endGroup()
             self.settings.endGroup()
 
-            # for child in self.findChildren((Calendar, DocStatus)):
-            #     print(' child found to be logged: ', child)
-            #     self.settings.beginGroup(child.objectName())
-            #     self.settings.setValue("Geometry", child.saveGeometry())
-            #     # self.settings.setValue("windowState", child.saveState())
-            #     self.settings.endGroup()
-            # self.settings.sync()
-            super().closeEvent(event)
+            setting = QSettings('Claassens Software', 'Calling LLB_2022_open')
+            setting.setValue('Load Last Session', self.load_d)
+            setting.setValue('Show on Startup', self.on_start)
+
+    def closeEvent(self, event):
+        # self.load_d = True # todo rep
+        self.user_settings(self.load_d)
+        super().closeEvent(event)
 
 
 class Calendar(QCalendarWidget):
@@ -819,17 +805,20 @@ class SuperButton(QWidget):
 
 
 class StartupDialog(QDialog):
+    # noinspection PyArgumentList
     def __init__(self):
         super().__init__()
         self.setModal(True)
         self.setWindowTitle("Settings Load")
         self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
         self.head = QLabel('Calling Open')
         self.head.setAlignment(Qt.AlignCenter)
 
         self.layout.addWidget(self.head)
 
         self.checkBox = QCheckBox("show on startup?")
+        self.checkBox.setChecked(True)
 
         self.layout.addWidget(self.checkBox)
 
@@ -837,18 +826,18 @@ class StartupDialog(QDialog):
 
         self.layout.addItem(self.verticalSpacer)
 
-        self.ques = QLabel("Load Default values?")
+        self.ques = QLabel("Load Last session values")
         self.layout.addWidget(self.ques)
 
-        self.buttonBox = QDialogButtonBox(self.verticalLayoutWidget)
-        self.buttonBox.setObjectName(u"buttonBox")
+        self.buttonBox = QDialogButtonBox()
         self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.No|QDialogButtonBox.Yes)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.No | QDialogButtonBox.Yes)
 
         self.layout.addWidget(self.buttonBox)
 
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
+        self.finished.connect(self.closes)
 
     def loadr(self,fun):
         def wr():
@@ -856,18 +845,45 @@ class StartupDialog(QDialog):
             return fun
         return wr
 
-    def accept(self):
-        self.par.reshow = self.checkBox.isChecked()
+    def closes(self,x):
+        load_win(x == 1, self.checkBox.isChecked())
 
-    def reject(self):
-        self.par.reshow = self.checkBox.isChecked()
-    # retranslateUi
 
+# def valueToBool(value):
+#     return value.lower() == 'true' if isinstance(value, str) else bool(value)
+
+def _start_up_promt():
+    # todo add reset
+    setting = QSettings('Claassens Software', 'Calling LLB_2022_open')
+    print('loaded startup')
+    show_startup = setting.value('Show on Startup',True ,type=bool)  # .toBool()
+    if show_startup:
+        print('show startup')
+        st.show()
+        print('loaded')
+    else:
+        print('show startup not')
+        load_d = setting.value('Load Last Session', True,type=bool)  # per user, load last session
+        load_win(load_d,False)
+
+
+def load_win(load_d, again):
+    if load_d:
+        print('show j')
+        j = 'Calling LLB_2022'
+    else:
+        print('show jnot')
+        j = 'User Saved'
+    win.settings = QSettings('Claassens Software', j)
+    win.on_start = again
+    win.load_d = load_d
+    win.show()
+    st.close()
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     win = Window()
-
-    win.show()
+    st = StartupDialog()
+    _start_up_promt()
     sys.exit(app.exec_())
