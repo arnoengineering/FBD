@@ -24,7 +24,7 @@ class Window(QMainWindow):
 
     def showEvent(self, event):
         # self._start_up_promt()
-
+        # todo menu load type
         self._set_list()
         self._set_empty()
         self.set_date_format()
@@ -39,7 +39,35 @@ class Window(QMainWindow):
         self._create_tools()
         self._update_set()
         super().showEvent(event)
-
+    #
+    # def _start_up_promt(self):
+    #     # todo add reset
+    #     setting = QSettings('Claassens Software', 'Calling LLB_2022_open')
+    #     print('loaded startup')
+    #     show_startup = setting.value('Show on Startup', True, type=bool)  # .toBool()
+    #     if show_startup:
+    #         print('show startup')
+    #
+    #             self.st.show()
+    #         print('loaded')
+    #     else:
+    #         print('show startup not')
+    #         load_d = setting.value('Load Last Session', True, type=bool)  # per user, load last session
+    #         self._load_win(load_d, False)
+    #
+    # def _load_win(self, load_d, again):
+    #     if load_d:
+    #         print('show j')
+    #         j = 'Calling LLB_2022'
+    #     else:
+    #         print('show jnot')
+    #         j = 'User Saved'
+    #     self.settings = QSettings('Claassens Software', j)
+    #     self.on_start = again
+    #     self.load_d = load_d
+    #     self.show()
+    #     st.close()
+    #
     def _set_list(self):
         self.docs = [{'Name': 'Dehlen', 'status': 'away', 'ontime delta': '-', 'patients behind': 0},
                      {'Name': 'lategan', 'status': 'here', 'ontime delta': 't+30', 'patients behind': 2}]
@@ -189,6 +217,10 @@ class Window(QMainWindow):
         elif i == 'Date Format':
             for r in self.date_list.values():
                 r.setDisplayFormat(ex)
+        elif i == 'Save':  # todo save tools
+
+            self._save_user_settings()
+
         elif i == 'Active':
             # self.active_doc = ex
             self.cen.update_active(ex)
@@ -339,6 +371,10 @@ class Window(QMainWindow):
         print(j)
 
         self.cmd_ls['Date Format'] = j
+
+    def _save_user_settings(self):
+        self.settings = QSettings('Claassens Software', 'User Saved')
+        self.user_settings()
 
     def user_settings(self,last_ses=True):
         self.settings.setValue("Geometry", self.saveGeometry())

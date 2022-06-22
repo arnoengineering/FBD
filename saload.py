@@ -1,11 +1,5 @@
-# import sympy as sy
-from PyQt5.QtGui import QPainter, QPen, QFont, QBrush, QTextCharFormat, QPolygon, QPalette
-from numpy import cos, sin, arctan, sqrt, pi, linspace, arange
-# import os
-from PyQt5 import QtCore
-from PyQt5.QtCore import Qt, QTimer, QSize, QDate, QPoint, QCalendar  # , QPointF, QPoint
-
 from PyQt5.QtWidgets import *
+import pandas as pd
 import sys
 
 
@@ -16,6 +10,9 @@ class saveLoad(QFileDialog):
         self._set_f_t()
         self.load_settings()
 
+    def ui(self):
+        if user selects string from dropdown, change to update
+        pass
     def load_f_type(self, names):
 
         st = []
@@ -31,6 +28,12 @@ class saveLoad(QFileDialog):
                     na_1 = f'{na} file: (*.{ty})'
                     st.append(na_1)
         return ';; '.join(st)
+
+    def on_save(self,fun,ty):
+        name = 'Shedual.xslm'  # todo ical
+        file = self.getSaveFileName(directory=name)
+        f = ty(file)
+        fun(f,file)  # todo wtf am i writing., maype cgange by end
 
     def _set_f_t(self):
         self.combo = {'User Readable': ['exel', 'csv'], 'data frame': ['jason', 'exel', 'csv']}
@@ -70,9 +73,14 @@ class saveLoad(QFileDialog):
     def save_settings(self):
         self.setAcceptMode(QFileDialog.AcceptOpen)
         self.setNameFilter(self.load_f_type(['jason', 'csv', 'excel']))
+        # self.setDefaultName()
+        # if save test data, and end
+        # list all
         pass
 
-    def save_ex(self):  # todo save open multy type
+    def save_ex(self,file, data):  # todo save open multy type
+        writer = pd.ExcelWriter(file)
+        pd.DataFrame.to_excel(data, file)
         pass
 
     def save_jsn(self):
