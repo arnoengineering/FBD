@@ -9,6 +9,7 @@ import sys
 
 from functools import partial
 from medgoogle import SchedualOptomizer
+from saload import saveLoad
 
 
 def sort_day(ls):
@@ -24,10 +25,12 @@ class Window(QMainWindow):
 
     def showEvent(self, event):
         # self._start_up_promt()
-        # todo menu load type
+        # todo hide vs start
         self._set_list()
         self._set_empty()
         self.set_date_format()
+
+        self._setup_load()
 
         self._set_dataframes()
 
@@ -39,35 +42,7 @@ class Window(QMainWindow):
         self._create_tools()
         self._update_set()
         super().showEvent(event)
-    #
-    # def _start_up_promt(self):
-    #     # todo add reset
-    #     setting = QSettings('Claassens Software', 'Calling LLB_2022_open')
-    #     print('loaded startup')
-    #     show_startup = setting.value('Show on Startup', True, type=bool)  # .toBool()
-    #     if show_startup:
-    #         print('show startup')
-    #
-    #             self.st.show()
-    #         print('loaded')
-    #     else:
-    #         print('show startup not')
-    #         load_d = setting.value('Load Last Session', True, type=bool)  # per user, load last session
-    #         self._load_win(load_d, False)
-    #
-    # def _load_win(self, load_d, again):
-    #     if load_d:
-    #         print('show j')
-    #         j = 'Calling LLB_2022'
-    #     else:
-    #         print('show jnot')
-    #         j = 'User Saved'
-    #     self.settings = QSettings('Claassens Software', j)
-    #     self.on_start = again
-    #     self.load_d = load_d
-    #     self.show()
-    #     st.close()
-    #
+
     def _set_list(self):
         self.docs = [{'Name': 'Dehlen', 'status': 'away', 'ontime delta': '-', 'patients behind': 0},
                      {'Name': 'lategan', 'status': 'here', 'ontime delta': 't+30', 'patients behind': 2}]
@@ -93,6 +68,7 @@ class Window(QMainWindow):
         self.list_v = {}
         self.action_list = {}
         self.combo = {}
+        self.default_file = 'docInfo.xlsx'  # todo save settings
 
     def _set_dataframes(self):
         self.schedul = pd.DataFrame(columns=['Date', 'Call', 'WI'])
@@ -102,7 +78,21 @@ class Window(QMainWindow):
         # add 'avail': {'pacient':'arno', 'room':4}
 
     def solve_doc(self):
+        self.save_l.sa = True
+        self.save_l.on_save_load()
+
+    def load_doc(self):
+        # assume overrite for now
+        # at end do save default or change
         pass
+
+    def _setup_load(self):
+        self.save_l = saveLoad(self, False)
+
+        if self.default_file:
+            self.save_l.on_load_fin(self.default_file,1)
+            print('iiiio')
+
 
     def _creat_toolbar(self):
         self.font_sizes = [7, 8, 9, 10, 11, 12, 13, 14, 18, 24, 36, 48, 64, 72, 96, 144, 288]
@@ -210,7 +200,8 @@ class Window(QMainWindow):
         elif i == 'Mode':
             self.cal_wig.swap_select_mode(self.combo[i].currentText())
         elif i == 'solve':
-            self.solver.run_scedual()
+            self.solve_doc()
+            #self.solver.run_scedual()
 
         # elif i == 'Setting Mode':
         #     self.set_mode = ex
@@ -605,6 +596,10 @@ class DocStatus(QTableWidget):  # self.doc_dataframe_items
             self.dia.show()
         print('popup')
         pass
+
+    # def read_date(self):
+    #     for d in doc[doc]['dates']:
+    #         qdate from str
 
 
 class docPopup(QDialog):

@@ -38,16 +38,25 @@ def load_json(file):
 
 def load_ex(file):  # todo save open multy type
     print('oad ex')
-    data = pd.read_excel(file)
+    xl = pd.ExcelFile(file)
+    data = {}
+    docs = xl.sheet_names
+    for sheet in docs:
+        data[sheet] = pd.read_excel(xl, sheet_name=sheet)
     return data
 
 
 class saveLoad(QFileDialog):
-    def __init__(self, sa=True):
+    def __init__(self, par, sa=True):
         super().__init__()
         self.setModal(True)
+        self.sa = sa
+        self.par = par
+        self.df_key = ['dates Here','Dates away', 'days want', 'pref', 'time per patient', 'categorie']
+
         self._set_f_t()
-        self.accepted.connect(self.end_fun)
+        self._on_save_load()
+
 
         # self.load_settings()
         self.func = [self.save_doc_preferences,  # of day,
@@ -60,12 +69,14 @@ class saveLoad(QFileDialog):
 
         self.save_fucs = {'excel': save_ex, 'csv': save_csv, 'json': save_json}
         self.load_fucs = {'excel': load_ex, 'csv': load_csv, 'json': load_json}
-        self.sa = sa
-        self._on_save_load()
+
         # self.currentChanged.connect(self._on_pox)
         # self._on_pox()
         # self._on_start()
         # self.save_settings()
+
+    def on_save_load(self):
+        self._on_save_load()
 
     def _on_start(self):
         self.dia = QDialog(self)
@@ -99,9 +110,11 @@ class saveLoad(QFileDialog):
     def _on_save_load(self):
         if self.sa:
             self.end_fun = self.on_save_fin
+            self.accepted.connect(self.end_fun)
             self.save_settings()
         else:
             self.end_fun = self.on_load_fin
+            self.accepted.connect(self.end_fun)
             self.load_settings()
 
     def on_save_fin(self):
@@ -124,8 +137,9 @@ class saveLoad(QFileDialog):
         fi = self.save_fucs[type1]
         fi(file,data)
 
-    def on_load_fin(self):
-        file = self.selectedFiles()[0]
+    def on_load_fin(self,file=None,ty=0):
+        if file is None:
+            file = self.selectedFiles()[0]
 
         ex = os.path.splitext(file)[-1]
 
@@ -137,9 +151,8 @@ class saveLoad(QFileDialog):
 
         fi = self.load_fucs[type1]
         data = fi(file)
-        # if 'doc' in data[0]:
         #     load = pref
-        lo = self.func_load[0]
+        lo = self.func_load[ty]
         lo(data)
 
     def ff(self):
@@ -203,7 +216,18 @@ class saveLoad(QFileDialog):
 
     def load_doc_info(self, data):
         print(data)
-        pass
+        # doc_l =[x['Name'] for x in self.par.docs]
+        for n, i in enumerate(data.keys()):
+            if i not in self.par.docs:
+                self.par.docs[i] = pd.DataFrame({k:{} for k in self.df_key})
+                # j = self.par.docs[kk]
+                self.par.docs[i].append(data[i])
+            else:
+                print('doc already ', i)
+                j = {'Name': i}
+            for m,k in enumerate(data.index):
+                j[k] = str(data.iloc[m,n])
+            self.par.docs.append(j)
 
     def save_doc_preferences(self):
         print('save_doc pref')
@@ -230,10 +254,6 @@ class saveLoad(QFileDialog):
         self.setDefaultSuffix('csv')  # todo run type ana
         self.setAcceptMode(QFileDialog.AcceptSave)
         self.setNameFilter(['json', 'csv', 'excel'])
-
-    # def _on_pox(self):
-    #     self.lay = super().layout()
-    #     print(super().__dir__())
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
