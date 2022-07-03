@@ -44,8 +44,8 @@ class Window(QMainWindow):
         super().showEvent(event)
 
     def _set_list(self):
-        self.docs = [{'Name': 'Dehlen', 'status': 'away', 'ontime delta': '-', 'patients behind': 0},
-                     {'Name': 'lategan', 'status': 'here', 'ontime delta': 't+30', 'patients behind': 2}]
+        self.doc_data = {}
+
 
         self.cmd_ls = {'Mode': ['Single', 'Range'],
                        'Start Week Format': ['Sun', 'Mon'],
@@ -62,7 +62,7 @@ class Window(QMainWindow):
     def _set_empty(self):
         self.set_mode = None
         self.active_col = Qt.black
-        # self.active_doc = self.docs[0]['Name']
+        # self.active_doc = self.doc_data[0]['Name']
         self.date_list = {}
         self.av = {}
         self.list_v = {}
@@ -72,8 +72,8 @@ class Window(QMainWindow):
 
     def _set_dataframes(self):
         self.schedul = pd.DataFrame(columns=['Date', 'Call', 'WI'])
-        self.doc_data = pd.DataFrame.from_records(self.docs)
-        self.cmd_ls['Active Doc'] = self.doc_data['Name']
+        self.doc_data2 = pd.DataFrame(columns=self.doc_data.keys())
+        self.cmd_ls['Active Doc'] = list(self.doc_data.keys())
         # self.av = {columns=['Date']+self.cmd_ls['doc'])
         # add 'avail': {'pacient':'arno', 'room':4}
 
@@ -88,11 +88,21 @@ class Window(QMainWindow):
 
     def _setup_load(self):
         self.save_l = saveLoad(self, False)
+        ls = ['categories', 'time per patient']
 
         if self.default_file:
             self.save_l.on_load_fin(self.default_file,1)
             print('iiiio')
+        self.doc_info = {}  # todo pivitlike then days, and true false
+        for i in self.doc_data.keys():
+            self.doc_info[i] = self.doc_data[i][ls]
+            self.doc_data[i] = self.doc_data[i].loc[:, ~self.doc_data[i].columns.isin(ls)]
 
+    def _setup_load2(self):
+        self.save_l = saveLoad(self, False)
+        ls = ['categories', 'time per patient']
+
+        self.save_l.on_load_fin('docDays.xlsx', 1)
 
     def _creat_toolbar(self):
         self.font_sizes = [7, 8, 9, 10, 11, 12, 13, 14, 18, 24, 36, 48, 64, 72, 96, 144, 288]
@@ -151,8 +161,8 @@ class Window(QMainWindow):
 
     def _set_clinic(self):
         self.doc_stat = DocStatus(self, 'Doc Stats')  # for docter clinic
-        self.day_stat = DocStatus(self, 'Dayly Stats')
-        self.clinic_wig = DocStatus(self, 'Live Clinic', Qt.LeftDockWidgetArea)
+        self.day_stat = DayStatus(self, ti='Dayly Stats')
+        self.clinic_wig = DocClinic(self, ti='Live Clinic', pos=Qt.LeftDockWidgetArea)
 
     # noinspection PyArgumentList
     def _create_tools(self):
@@ -553,15 +563,23 @@ class DocStatus(QTableWidget):  # self.doc_dataframe_items
 
     def reset_table(self):
         self.clear()
+        dd = self.par.doc_data
+        dl = list(dd.keys())
+        r, c = dd[dl[0]].shape
+        self.reset_table_main(dd,dl,r,c)
 
-        r, c = self.par.doc_data.shape
+    def reset_table_main(self,dd,dl,r,c):
+
+        # r += 1
 
         self.setRowCount(r)
-        self.setColumnCount(c)
-        self.setHorizontalHeaderLabels(list(self.par.doc_data.columns))
+        self.setColumnCount(c*len(dl))
+        ddd = list(dd[dl[0]].columns)
+        self.setHorizontalHeaderLabels(dl[n//c] + ddd[n//len(dl)] for n in range(c*len(dl)))
         for n in range(r):
-            for m in range(c):
-                self.setItem(n, m, QTableWidgetItem(str(self.par.doc_data.iloc[n, m])))
+            for d in dl:
+                for m in range(c):
+                    self.setItem(n, m, QTableWidgetItem(str(dd[d].iloc[n, m])))
 
     def tab_s(self, row_n, col_n):
         if row_n == 0:
@@ -600,6 +618,53 @@ class DocStatus(QTableWidget):  # self.doc_dataframe_items
     # def read_date(self):
     #     for d in doc[doc]['dates']:
     #         qdate from str
+
+
+class DocClinic(DocStatus):  # self.doc_dataframe_items
+    def __init__(self, par, **kwargs):
+        super().__init__(par, **kwargs)
+
+    def reset_table(self):
+        dd = self.par.doc_info
+        dl = list(dd.keys())
+        r, c = dd[dl[0]].shape
+        self.reset_table_main(dd, dl, r, c)
+
+
+class DayStatus(DocStatus):
+    def __init__(self, par, **kwargs):
+        self.day_range = 30
+        super().__init__(par, **kwargs)
+
+
+    def reset_table(self):
+        self.clear()
+
+        dd = self.par.doc_data
+        dl = list(dd.keys())
+        r, c = dd[dl[0]].shape
+        c-=1
+        dr ={}
+        da = QDate.currentDate()
+        for d in range(self.day_range):
+            dr[da.addDays(d)] = {'dates Here': [],'Dates away':[], 'days want':[]}  # todo swap with dataframe or with piviot
+
+        self.setRowCount(self.day_range)
+        self.setColumnCount(c)
+        ddd = list(dd[dl[0]].columns)
+        self.setHorizontalHeaderLabels(dl[n // c] + ddd[n // len(dl)] for n in range(c * len(dl)))
+        for n in range(r):
+            for d in dl:
+                for m in ddd:
+                    for j in dd[d][m]:
+                        if not pd.isna(j):
+                            dr[QDate(j.year,j.month, j.day)][m].append(d)  # todo convert earelier
+        for n, d in enumerate(dr.keys()):
+            self.setItem(n,0,QTableWidgetItem(d.toString()))  # todo with user format
+            for m, do in enumerate(dr[d].keys()):
+                self.setItem(n, m, QTableWidgetItem(','.join(dr[d][do])))
+
+
 
 
 class docPopup(QDialog):

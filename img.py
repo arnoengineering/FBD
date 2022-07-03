@@ -2,7 +2,7 @@
 statusbar percent'status bar stats'
 patient_time = {'claassens': 30, 'dehlen': 20, 'lategan': 15}
 
-"""# tool-list: add prefernce, add away, force update, split into two docs per day,
+"""# tool-list: add prefernce, add away, force update, split into two doc_data per day,
     # run solver, rerun solver, save solver, export solver,
     # doc time behind
 print

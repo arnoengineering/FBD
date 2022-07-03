@@ -1,7 +1,7 @@
 import os.path
 import re
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QDate
 from PyQt5.QtWidgets import *
 import pandas as pd
 import sys
@@ -52,7 +52,7 @@ class saveLoad(QFileDialog):
         self.setModal(True)
         self.sa = sa
         self.par = par
-        self.df_key = ['dates Here','Dates away', 'days want', 'pref', 'time per patient', 'categorie']
+        self.df_key = ['dates Here','Dates away', 'days want', 'pref', 'time per patient', 'categories']
 
         self._set_f_t()
         self._on_save_load()
@@ -208,26 +208,43 @@ class saveLoad(QFileDialog):
 
     def load_doc_preferences(self, data):
         print(data)
+        # doc_l =[x['Name'] for x in self.par.doc_data]
+        r,c =data.shape
+
+        for i in data['Days']:
+            i = QDate(i.year, i.month, i.date)  # todo nan as
+            for j in range(c):  # concat writeover
+
+            if i not in self.par.doc_data2:
+                self.par.doc_data2[i] = pd.DataFrame({k: [] for k in self.df_key})
+                print(f'i,{i}')
+
+            print(f'datai: {data[i]}, doc_i: {self.par.doc_data[i]}')
+            self.par.doc_data[i] = pd.concat([self.par.doc_data[i], data[i]], ignore_index=True, verify_integrity=True)
+        print(self.par.doc_data)
         pass
 
     def load_secdual(self, data):
         print(data)
         pass
 
-    def load_doc_info(self, data):
+    def load_doc_info(self, data):  # note for doc excel
         print(data)
-        # doc_l =[x['Name'] for x in self.par.docs]
+        # doc_l =[x['Name'] for x in self.par.doc_data]
         for n, i in enumerate(data.keys()):
-            if i not in self.par.docs:
-                self.par.docs[i] = pd.DataFrame({k:{} for k in self.df_key})
-                # j = self.par.docs[kk]
-                self.par.docs[i].append(data[i])
-            else:
-                print('doc already ', i)
-                j = {'Name': i}
-            for m,k in enumerate(data.index):
-                j[k] = str(data.iloc[m,n])
-            self.par.docs.append(j)
+            if i not in self.par.doc_data:
+                self.par.doc_data[i] = pd.DataFrame({k:[] for k in self.df_key})
+                print(f'i,{i}')
+                # j = self.par.doc_data[kk]
+            #     self.par.doc_data[i].append(data[i])
+            # else:
+            #     print('doc already ', i)
+            #     j = {'Name': i}
+            # for m,k in enumerate(data[i].index):
+            #     j[k] = str(data.iloc[m,n])
+            print(f'datai: {data[i]}, doc_i: {self.par.doc_data[i]}')
+            self.par.doc_data[i] = pd.concat([self.par.doc_data[i], data[i]],ignore_index=True, verify_integrity=True)
+        print(self.par.doc_data)
 
     def save_doc_preferences(self):
         print('save_doc pref')

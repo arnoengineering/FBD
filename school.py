@@ -6,6 +6,6 @@ for t,o in enumerate(term):
 select list of days 
 on day popup
 save doc
-select day week month, year, doc on docs off percentage, an on an off... 
+select day week month, year, doc on doc_data off percentage, an on an off... 
 per doc stats
 add menubar"""
