@@ -25,7 +25,7 @@ class Window(QMainWindow):
 
     def showEvent(self, event):
         # self._start_up_promt()
-        # todo hide vs start
+
         self._set_list()
         self._set_empty()
         self.set_date_format()
@@ -35,17 +35,16 @@ class Window(QMainWindow):
         self._set_dataframes()
 
         self.test_doc()
+        self._creat_toolbar()
+        self._create_tools()
         self._set_center()
         self._set_clinic()
 
-        self._creat_toolbar()
-        self._create_tools()
         self._update_set()
         super().showEvent(event)
 
     def _set_list(self):
         self.doc_data = {}
-
 
         self.cmd_ls = {'Mode': ['Single', 'Range'],
                        'Start Week Format': ['Sun', 'Mon'],
@@ -54,8 +53,7 @@ class Window(QMainWindow):
                        'Weekday Format': ['let', '3let', 'Full']}
 
         self.wn = 'Show/Hide Weeknumbers'
-        self.button_list = ['solve', self.wn, 'Today', 'Apply', 'Save', 'Load', 'Add']  # todo logos and split
-        # todo border
+        self.button_list = ['solve', self.wn, 'Today', 'Apply', 'Save', 'Load', 'Add']
 
         self.date_n = ['StartDate', 'EndDate']
 
@@ -68,11 +66,11 @@ class Window(QMainWindow):
         self.list_v = {}
         self.action_list = {}
         self.combo = {}
-        self.default_file = 'docInfo.xlsx'  # todo save settings
+        self.default_file = 'docInfoN.xlsx'
 
     def _set_dataframes(self):
         self.schedul = pd.DataFrame(columns=['Date', 'Call', 'WI'])
-        self.doc_data2 = pd.DataFrame(columns=self.doc_data.keys())
+        # self.doc_data2 = pd.DataFrame(columns=self.doc_data.keys())
         self.cmd_ls['Active Doc'] = list(self.doc_data.keys())
         # self.av = {columns=['Date']+self.cmd_ls['doc'])
         # add 'avail': {'pacient':'arno', 'room':4}
@@ -91,18 +89,19 @@ class Window(QMainWindow):
         ls = ['categories', 'time per patient']
 
         if self.default_file:
-            self.save_l.on_load_fin(self.default_file,1)
+            self.save_l.on_load_fin(self.default_file, 1)
             print('iiiio')
-        self.doc_info = {}  # todo pivitlike then days, and true false
-        for i in self.doc_data.keys():
-            self.doc_info[i] = self.doc_data[i][ls]
-            self.doc_data[i] = self.doc_data[i].loc[:, ~self.doc_data[i].columns.isin(ls)]
+        self._setup_load2()
+        # self.doc_info = {}
+        # for i in self.doc_data.keys():
+        #     self.doc_info[i] = self.doc_data[i][ls]
+        #     self.doc_data[i] = self.doc_data[i].loc[:, ~self.doc_data[i].columns.isin(ls)]
 
     def _setup_load2(self):
-        self.save_l = saveLoad(self, False)
-        ls = ['categories', 'time per patient']
+        self.save_l = saveLoad(self, False)  # todo add legend
 
-        self.save_l.on_load_fin('docDays.xlsx', 1)
+        self.save_l.on_load_fin('docDays.xlsx', 0)
+        self.doc_data2['Days'] = self.doc_data2['Days'].apply(lambda x:QDate(x.year, x.month, x.day))
 
     def _creat_toolbar(self):
         self.font_sizes = [7, 8, 9, 10, 11, 12, 13, 14, 18, 24, 36, 48, 64, 72, 96, 144, 288]
@@ -130,7 +129,7 @@ class Window(QMainWindow):
         # for it in tb_op:
         #     j = QPushButton(it)
         #     # j.setIcon(self.img_loc+it)
-        #     # todo add hotkey, add to menu with icon
+        #
         #     self.but_edit[it] = j
         #     self.tool_bar.addWidget(j)
 
@@ -168,15 +167,6 @@ class Window(QMainWindow):
     def _create_tools(self):
         self.tool_bar2 = QToolBar()
 
-        self.tool_wig = QWidget()
-        self.tool_dock = QDockWidget('Tools')
-        self.tool_dock.setWidget(self.tool_wig)
-
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.tool_dock)
-
-        self.tool_layout = QGridLayout()
-        self.tool_wig.setLayout(self.tool_layout)
-
         self.addToolBar(self.tool_bar2)
         self.addToolBar(self.cal_tool_bar)
 
@@ -211,14 +201,14 @@ class Window(QMainWindow):
             self.cal_wig.swap_select_mode(self.combo[i].currentText())
         elif i == 'solve':
             self.solve_doc()
-            #self.solver.run_scedual()
+            # self.solver.run_scedual()
 
         # elif i == 'Setting Mode':
         #     self.set_mode = ex
         elif i == 'Date Format':
             for r in self.date_list.values():
                 r.setDisplayFormat(ex)
-        elif i == 'Save':  # todo save tools
+        elif i == 'Save':
 
             self._save_user_settings()
 
@@ -289,11 +279,7 @@ class Window(QMainWindow):
 
             self.font_ty[tty][ty] = font
 
-    def _update_set(
-            self):  # onpopup combo # todo types todo change  so defalt vas in dict# todo save special, load on default or last, use create settings dialog based on initial creation
-        # open file set to these, then run normal# todo add others add functions on soime vals_ try....# todo add others add functions on soime vals_ try....
-        # self.__setattr__(ke_new, val)'Week Number': True,'Active Wig': 'Cal',
-        # 'Doc File Loc': {'Doc Pref': '', 'doc act': ''},
+    def _update_set(self):
         print('loading_all')
         self.setting_keys_combo = {'Date Format': 'dd-MMM-yyyy',  # y-m-d,y-d-m,d-m-y,m-d-y
                                    'Weekday Format': 'let',  # long,sort,,let
@@ -331,14 +317,14 @@ class Window(QMainWindow):
             val = {}
             self.settings.beginGroup(ke)
             for vi in v.keys():
-                val[vi] = self.settings.value(vi, v[vi])  # todo add others add functions on soime vals_ try....
+                val[vi] = self.settings.value(vi, v[vi])
 
             self.font_ty[ke] = val
             self.settings.endGroup()
         self.settings.endGroup()
-        k =self.settings.allKeys()
+        k = self.settings.allKeys()
         print('res')
-        for i,j in [(self.restoreGeometry, "Geometry"), (self.restoreState, "windowState")]:
+        for i, j in [(self.restoreGeometry, "Geometry"), (self.restoreState, "windowState")]:
             if j in k:
                 i(self.settings.value(j))
 
@@ -377,13 +363,13 @@ class Window(QMainWindow):
         self.settings = QSettings('Claassens Software', 'User Saved')
         self.user_settings()
 
-    def user_settings(self,last_ses=True):
+    def user_settings(self, last_ses=True):
         self.settings.setValue("Geometry", self.saveGeometry())
         self.settings.setValue("windowState", self.saveState())
 
         if last_ses:
             self.settings.beginGroup('combo')
-            # todo allways update some not others
+
             for ke in self.setting_keys_combo.keys():
                 val = self.combo[ke].currentText()
                 self.settings.setValue(ke, val)
@@ -394,7 +380,7 @@ class Window(QMainWindow):
             for ke, v in self.font_ty_default.items():
                 self.settings.beginGroup(ke)
                 for vi in v.keys():
-                    self.settings.setValue(vi, v[vi])  # todo add others add functions on soime vals_ try....
+                    self.settings.setValue(vi, v[vi])
                 self.settings.endGroup()
             self.settings.endGroup()
 
@@ -530,6 +516,7 @@ class DocStatus(QTableWidget):  # self.doc_dataframe_items
         self.sort_col = 'Name'
         self.par = par
         self.pos = pos
+        self.d_r = 30
         #
         self.horizontalHeader().sectionClicked.connect(self.sort_by)
         self.cellClicked.connect(self.tab_s)
@@ -537,8 +524,6 @@ class DocStatus(QTableWidget):  # self.doc_dataframe_items
         self.dia = None
         self._init_dock()
         self.reset_table()
-        # todo
-        """add filters,"""
 
     def mousePressEvent(self, event):
         self.par.set_active_wig(self.ti)
@@ -563,23 +548,33 @@ class DocStatus(QTableWidget):  # self.doc_dataframe_items
 
     def reset_table(self):
         self.clear()
-        dd = self.par.doc_data
-        dl = list(dd.keys())
-        r, c = dd[dl[0]].shape
-        self.reset_table_main(dd,dl,r,c)
+        dd = self.par.doc_data2
 
-    def reset_table_main(self,dd,dl,r,c):
+        r, c = dd.shape
+
+        da = QDate.currentDate()
+        for d in range(self.d_r):
+            day = da.addDays(d)
+            if day not in dd['Days']:
+                dd = pd.concat([dd, pd.DataFrame([day], columns=['Days'])])
+
+        dd.fillna(0)
+        self.reset_table_main(dd, r, c)
+
+    def reset_table_main(self, dd, r, c):
 
         # r += 1
-
+        self.setHorizontalHeaderLabels(list(dd.columns))
         self.setRowCount(r)
-        self.setColumnCount(c*len(dl))
-        ddd = list(dd[dl[0]].columns)
-        self.setHorizontalHeaderLabels(dl[n//c] + ddd[n//len(dl)] for n in range(c*len(dl)))
+        self.setColumnCount(c)
         for n in range(r):
-            for d in dl:
-                for m in range(c):
-                    self.setItem(n, m, QTableWidgetItem(str(dd[d].iloc[n, m])))
+            for m in range(c):
+                tx = dd.iloc[n, m]
+                if isinstance(tx, QDate):
+                    j = tx.toString(self.par.combo['Date Format'].currentText())
+                else:
+                    j = str(tx)
+                self.setItem(n, m, QTableWidgetItem(j))
 
     def tab_s(self, row_n, col_n):
         if row_n == 0:
@@ -625,10 +620,17 @@ class DocClinic(DocStatus):  # self.doc_dataframe_items
         super().__init__(par, **kwargs)
 
     def reset_table(self):
-        dd = self.par.doc_info
-        dl = list(dd.keys())
-        r, c = dd[dl[0]].shape
-        self.reset_table_main(dd, dl, r, c)
+        dd = self.par.doc_data
+        r, c = dd.shape
+        self.reset_table_main(dd, r, c)
+
+    # def reset_table_main(self, dd, r, c):
+    #     self.setHorizontalHeaderLabels(list(dd.columns))
+    #     self.setRowCount(c)
+    #     self.setColumnCount(r)
+    #     for n in range(r):
+    #         for m in range(c):
+    #             self.setItem(m,n, QTableWidgetItem(str(dd.iloc[n, m])))
 
 
 class DayStatus(DocStatus):
@@ -636,35 +638,33 @@ class DayStatus(DocStatus):
         self.day_range = 30
         super().__init__(par, **kwargs)
 
-
-    def reset_table(self):
-        self.clear()
-
-        dd = self.par.doc_data
-        dl = list(dd.keys())
-        r, c = dd[dl[0]].shape
-        c-=1
-        dr ={}
-        da = QDate.currentDate()
-        for d in range(self.day_range):
-            dr[da.addDays(d)] = {'dates Here': [],'Dates away':[], 'days want':[]}  # todo swap with dataframe or with piviot
-
-        self.setRowCount(self.day_range)
-        self.setColumnCount(c)
-        ddd = list(dd[dl[0]].columns)
-        self.setHorizontalHeaderLabels(dl[n // c] + ddd[n // len(dl)] for n in range(c * len(dl)))
-        for n in range(r):
-            for d in dl:
-                for m in ddd:
-                    for j in dd[d][m]:
-                        if not pd.isna(j):
-                            dr[QDate(j.year,j.month, j.day)][m].append(d)  # todo convert earelier
-        for n, d in enumerate(dr.keys()):
-            self.setItem(n,0,QTableWidgetItem(d.toString()))  # todo with user format
-            for m, do in enumerate(dr[d].keys()):
-                self.setItem(n, m, QTableWidgetItem(','.join(dr[d][do])))
-
-
+    # def reset_table(self):
+    #     self.clear()
+    #
+    #     dd = self.par.doc_data
+    #     dl = list(dd.keys())
+    #     r, c = dd[dl[0]].shape
+    #     c -= 1
+    #     dr = {}
+    #     da = QDate.currentDate()
+    #     for d in range(self.day_range):
+    #         dr[da.addDays(d)] = {'dates Here': [], 'Dates away': [],
+    #                              'days want': []}
+    #
+    #     self.setRowCount(self.day_range)
+    #     self.setColumnCount(c)
+    #     ddd = list(dd[dl[0]].columns)
+    #     self.setHorizontalHeaderLabels(dl[n // c] + ddd[n // len(dl)] for n in range(c * len(dl)))
+    #     for n in range(r):
+    #         for d in dl:
+    #             for m in ddd:
+    #                 for j in dd[d][m]:
+    #                     if not pd.isna(j):
+    #                         dr[QDate(j.year, j.month, j.day)][m].append(d)
+    #     for n, d in enumerate(dr.keys()):
+    #         self.setItem(n, 0, QTableWidgetItem(d.toString()))
+    #         for m, do in enumerate(dr[d].keys()):
+    #             self.setItem(n, m, QTableWidgetItem(','.join(dr[d][do])))
 
 
 class docPopup(QDialog):
@@ -716,7 +716,7 @@ class docPopup(QDialog):
         self.dia_lay.addLayout(self.horizontalLayout)
         self.setLayout(self.dia_lay)
 
-    def acc(self):  # todo par doc data: save
+    def acc(self):
         print('accet')
         if self.res:
             del self.doc_data[self.res]
@@ -796,7 +796,7 @@ class CalendarDayDelegate(QItemDelegate):
 
 
 class ColorButton(QPushButton):
-    def __init__(self, col='', par=None):  # todo empty space
+    def __init__(self, col='', par=None):
         super().__init__(col)
 
         self.par = par
@@ -811,7 +811,7 @@ class ColorButton(QPushButton):
         rect.moveTo(self.rect().bottomRight() - rect.bottomRight())
 
         painter = QPainter(self)
-        painter.setBrush(self.par.active_col)  # todo fix
+        painter.setBrush(self.par.active_col)
         painter.drawRect(rect)
 
 
@@ -838,6 +838,7 @@ class SuperCombo(QComboBox):
     def _layout_set(self):
         if self.orient_v:
             self.layout = QVBoxLayout()
+        else:
             self.layout = QHBoxLayout()
         self.layout.addWidget(self)
         self.layout.addWidget(self.lab)
@@ -935,32 +936,29 @@ class StartupDialog(QDialog):
         self.buttonBox.rejected.connect(self.reject)
         self.finished.connect(self.closes)
 
-    def loadr(self,fun):
+    def loadr(self, fun):
         def wr():
             self.par.reshow = self.checkBox.isChecked()
             return fun
+
         return wr
 
-    def closes(self,x):
+    def closes(self, x):
         load_win(x == 1, self.checkBox.isChecked())
 
 
-# def valueToBool(value):
-#     return value.lower() == 'true' if isinstance(value, str) else bool(value)
-
 def _start_up_promt():
-    # todo add reset
     setting = QSettings('Claassens Software', 'Calling LLB_2022_open')
     print('loaded startup')
-    show_startup = setting.value('Show on Startup',True ,type=bool)  # .toBool()
+    show_startup = setting.value('Show on Startup', True, type=bool)  # .toBool()
     if show_startup:
         print('show startup')
         st.show()
         print('loaded')
     else:
         print('show startup not')
-        load_d = setting.value('Load Last Session', True,type=bool)  # per user, load last session
-        load_win(load_d,False)
+        load_d = setting.value('Load Last Session', True, type=bool)  # per user, load last session
+        load_win(load_d, False)
 
 
 def load_win(load_d, again):

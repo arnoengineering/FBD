@@ -8,7 +8,7 @@ import sys
 
 
 def save_csv(file, data):
-    # todo add extra data to tell wat option
+
     print('load csv')
     data.to_csv(file)
 
@@ -18,7 +18,7 @@ def save_json(file, data):
     print('load json')
 
 
-def save_ex(file, data):  # todo save open multy type
+def save_ex(file, data):
     print('oad ex')
     writer = pd.ExcelWriter(file)
     data.to_excel(writer)
@@ -36,7 +36,7 @@ def load_json(file):
     return data
 
 
-def load_ex(file):  # todo save open multy type
+def load_ex(file):
     print('oad ex')
     xl = pd.ExcelFile(file)
     data = {}
@@ -83,7 +83,7 @@ class saveLoad(QFileDialog):
         self.dia_lay = QVBoxLayout()
         self.name_lay = QLabel('Name')
         self.box = QComboBox()
-        self.box.addItems(['prefernces', 'info', 'Scedule'])
+        self.box.addItems(['prefernces', 'Info', 'Scedule'])
         self.dia_lay.addWidget(self.name_lay)
         self.dia_lay.addWidget(self.box)
 
@@ -123,8 +123,6 @@ class saveLoad(QFileDialog):
             print('not in')
             filter_sel = self.selectedNameFilter()
             fil = re.search('\((.+?)\)', filter_sel).group(1).replace('*', '')
-            # fil =   # todo oither suffic if selected
-            # fil.replace('(','').replace(')', "").replace('*','')
             file += fil
 
         ex = os.path.splitext(file)[-1]
@@ -176,25 +174,16 @@ class saveLoad(QFileDialog):
                     st.append(na_1)
         return ';; '.join(st)
 
-    def on_save(self):  # ,fun,ty):
-        name = 'Shedual.xslm'  # todo ical
+    def on_save(self):
+        name = 'Shedual.xslm'
         self.setDirectory(name)
-        # file = self.getSaveFileName(directory=name)
-        # f = ty(file)
-        # fun(f,file)  # todo wtf am i writing., maype cgange by end
 
     def _set_f_t(self):
         self.combo = {'User Readable': ['exel', 'csv'], 'data frame': ['json', 'exel', 'csv']}
         self.f_t = {'json': ['json'], 'csv': ['csv'], 'excel': ['xmls', 'xslm'], 'text': 'txt'}
 
-    # def load_func(self, func):
-    #     def wrap():
-    #         self.setDefaultSuffix('csv')  # todo run type ana
-    #         self.setAcceptMode(QFileDialog.AcceptSave)
-    #         func()
-    #     return wrap
     def load_func(self):
-        self.setDefaultSuffix('csv')  # todo run type ana
+        self.setDefaultSuffix('csv')
         self.setAcceptMode(QFileDialog.AcceptOpen)
 
     # @load_func
@@ -209,20 +198,8 @@ class saveLoad(QFileDialog):
     def load_doc_preferences(self, data):
         print(data)
         # doc_l =[x['Name'] for x in self.par.doc_data]
-        r,c =data.shape
+        self.par.doc_data2 = data['Days']
 
-        for i in data['Days']:
-            i = QDate(i.year, i.month, i.date)  # todo nan as
-            for j in range(c):  # concat writeover
-
-            if i not in self.par.doc_data2:
-                self.par.doc_data2[i] = pd.DataFrame({k: [] for k in self.df_key})
-                print(f'i,{i}')
-
-            print(f'datai: {data[i]}, doc_i: {self.par.doc_data[i]}')
-            self.par.doc_data[i] = pd.concat([self.par.doc_data[i], data[i]], ignore_index=True, verify_integrity=True)
-        print(self.par.doc_data)
-        pass
 
     def load_secdual(self, data):
         print(data)
@@ -231,20 +208,8 @@ class saveLoad(QFileDialog):
     def load_doc_info(self, data):  # note for doc excel
         print(data)
         # doc_l =[x['Name'] for x in self.par.doc_data]
-        for n, i in enumerate(data.keys()):
-            if i not in self.par.doc_data:
-                self.par.doc_data[i] = pd.DataFrame({k:[] for k in self.df_key})
-                print(f'i,{i}')
-                # j = self.par.doc_data[kk]
-            #     self.par.doc_data[i].append(data[i])
-            # else:
-            #     print('doc already ', i)
-            #     j = {'Name': i}
-            # for m,k in enumerate(data[i].index):
-            #     j[k] = str(data.iloc[m,n])
-            print(f'datai: {data[i]}, doc_i: {self.par.doc_data[i]}')
-            self.par.doc_data[i] = pd.concat([self.par.doc_data[i], data[i]],ignore_index=True, verify_integrity=True)
-        print(self.par.doc_data)
+        self.par.doc_data = data['Info']
+
 
     def save_doc_preferences(self):
         print('save_doc pref')
@@ -266,9 +231,9 @@ class saveLoad(QFileDialog):
         return df
 
     def save_settings(self):
-        name = 'Shedual.csv'  # todo ical
+        name = 'Shedual.csv'
         self.setDirectory(name)
-        self.setDefaultSuffix('csv')  # todo run type ana
+        self.setDefaultSuffix('csv')
         self.setAcceptMode(QFileDialog.AcceptSave)
         self.setNameFilter(['json', 'csv', 'excel'])
 
