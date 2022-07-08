@@ -1,5 +1,7 @@
+import pandas as pd
 from absl import app
 from absl import flags
+from PyQt5.QtCore import QDate
 
 from google.protobuf import text_format
 from ortools.sat.python import cp_model
@@ -19,32 +21,48 @@ flags.DEFINE_string('params', 'max_time_in_seconds:10.0',
 
 class SchedualOptomizer:
     def __init__(self):
+        self.app = app
         self.num_employees = 5
         self.num_weeks = 4
         # Penalty for exceeding the cover constraint per shift type.
 
-        self.shifts = ['Off', 'Call', 'Walk_in']
+        self.shifts = ['Off', 'Call', 'Walkin']
         self.num_days = self.num_weeks * 7
-        self.num_shifts = len(self.shifts)
-        self._set_constraints()
 
-    def run_scedual(self):
+    def run_main(self):
+        self.app.run(self.run_scedual)
+
+    def run_scedual(self, _=None):
         self.solve_shift_scheduling(FLAGS.params, FLAGS.output_proto)
 
-    def _set_constraints(self):
+    def set_constraints(self, data,day,num_day=None):
+        if num_day is not None:
+            self.num_days = num_day
+        self._set_constraints(data,day)
+
+    def _set_constraints(self, data:pd.DataFrame,day:QDate):
         # todo combo contraints
+        print('optom init')
+        self.data = data
+        self.day = day
+        self.data.fillna(0)
+        print('got data')
+        self.doc = self.data.columns
         self.model = cp_model.CpModel()
         self.weekly_sum_constraints = []
-        self.shift_constraints = [(0, 0, 1, 2, 1, 2, 7),
-                            (1, 0, 1, 2, 2, 3, 7)]
+        # Weekly sum constraints on shifts days:
+        #     (shift, hard_min, soft_min, min_penalty,
+        #             soft_max, hard_max, max_penalty)
+        self.shift_constraints = [('Off', 0, 1, 2, 1, 2, 7),
+                            ('Call', 0, 1, 2, 2, 3, 7)]
         self.penalized_transitions = [
-            (2, 2, 7),  # no doubles.
-            (1, 1, 7),
+            ('Call', 'Call', 7),  # no doubles.
+            ('Walk_in', 'Walk_in', 7),
         ]
-        self.requests = [(3, 0, 5, -2),
-            (4, 1, 10, -2),
-            (2, 0, 4, 4)]
-        self.excess_cover_penalties = (2, 2)
+        # self.requests = [(3, 0, 5, -2),
+        #     (4, 1, 10, -2),
+        #     (2, 0, 4, 4)]  # todo chech here
+        self.excess_cover_penalties = (2, 2,0)
         self.fixed_assignments = []
 
         self.weekly_cover_demands = []
@@ -52,21 +70,23 @@ class SchedualOptomizer:
         # of the week starting on Monday.
 
         for x in range(7):
-            #
-            #
             if x < 5:  # sat sun
                 walk_in_need = 1
             else:
                 walk_in_need = 0
             self.weekly_cover_demands.append((1, walk_in_need))
+        print('fin data')
 
     def solve_shift_scheduling(self, params, output_proto):
-
+        print('starting solve')
         work = {}
-        for e in range(self.num_employees):
-            for s in range(self.num_shifts):
+
+        print('Loading vars')
+        for e in self.doc:
+            for s in self.shifts:
                 for d in range(self.num_days):
-                    work[e, s, d] = self.model.NewBoolVar('work%i_%i_%i' % (e, s, d))
+                    print(f'e: {e}, s: {s}, d: {d}')
+                    work[e, s, d] = self.model.NewBoolVar(f'Doctor{e}_{s}_{d}')
 
         # Linear terms of the objective in a minimization context.
         # todo only one call per day
@@ -76,9 +96,11 @@ class SchedualOptomizer:
         obj_bool_coeffs = []
 
         # Exactly one shift per day.
-        for e in range(self.num_employees):
+        print('loading shifts')
+        for e in self.doc:
             for d in range(self.num_days):
-                self.model.AddExactlyOne(work[e, s, d] for s in range(self.num_shifts))  # leftoves in off
+                print(f'e: {e}, d: {d}')
+                self.model.AddExactlyOne(work[e, s, d] for s in self.shifts)  # leftoves in off
 
         #     # Exactly one shift per day.
         # for e in range(num_employees):
@@ -91,47 +113,71 @@ class SchedualOptomizer:
         #             model.AddExactlyOne(work[e, s, d + w * 7] for s in range(num_shifts - n))  # leftoves in off
         # for d in range(num_days-2,num_days):
         #
-        for s in range(1, self.num_shifts):
+        print('loading day per day')
+        for s in self.shifts[1:]:
             for d in range(self.num_days):
-                self.model.AddAtMostOne(work[e, s, d] for e in range(self.num_employees))
-        # Fixed assignments.
-        for e, s, d in self.fixed_assignments:
-            self.model.Add(work[e, s, d] == 1)
+                print(f's: {s}, d: {d}')
+                self.model.AddAtMostOne(work[e, s, d] for e in self.doc)
+
 
         # Employee requests
-        for e, s, d, w in self.requests:
-            obj_bool_vars.append(work[e, s, d])
-            obj_bool_coeffs.append(w)
+        print('loading reqests')
+        r, c = self.data.shape
+        print(f'shape = {r},{c}')
+        for m in range(r):
+            print('m:',m)
+            for n in range(1,c):
+                print('n:', n)
+                da = self.data.iloc[m,n]
+                print('data: ', da)
+                try:
+                    print('try')
+                    shif, weight = da.split('_',1)
+                    weight = int(weight)
+                    print(f'shif, weight: ({shif}, {weight})')
+                except TypeError or ValueError:
+                    print('try failed')
+                    continue
+                doc =list(self.doc)[n]
+                day = self.day.daysto(self.data.iloc[m,0])
+                if day < 0:
+                    continue
+                print(f'doc,day : ({doc},{day})')
+                if weight == 5:
+                    print('weight = 5')
+                    self.model.Add(work[doc, shif, day] == 1)
+                elif weight !=0:
+                    # since neg is pos
+                    print('weight != 5')
+                    obj_bool_vars.append(work[doc, shif, day])
+                    obj_bool_coeffs.append(-weight)
 
         # Shift constraints
         for ct in self.shift_constraints:
             shift, hard_min, soft_min, min_cost, soft_max, hard_max, max_cost = ct
-            for e in range(self.num_employees):
+            for e in self.doc:
                 works = [work[e, shift, d] for d in range(self.num_days)]
-                variables, coeffs = add_soft_sequence_constraint(
+                variables, coeffs = self.add_soft_sequence_constraint(
                     self.model, works, hard_min, soft_min, min_cost, soft_max, hard_max,
-                    max_cost,
-                    'shift_constraint(employee %i, shift %i)' % (e, shift))
+                    max_cost,f'shift_constraint(Doctor {e}, {shift})')
                 obj_bool_vars.extend(variables)
                 obj_bool_coeffs.extend(coeffs)
 
-        # Weekly sum constraints
-        for ct in self.weekly_sum_constraints:
-            shift, hard_min, soft_min, min_cost, soft_max, hard_max, max_cost = ct
-            for e in range(self.num_employees):
-                for w in range(self.num_weeks):
-                    works = [work[e, shift, d + w * 7] for d in range(7)]
-                    variables, coeffs = add_soft_sum_constraint(
-                        self.model, works, hard_min, soft_min, min_cost, soft_max,
-                        hard_max, max_cost,
-                        'weekly_sum_constraint(employee %i, shift %i, week %i)' %
-                        (e, shift, w))
-                    obj_int_vars.extend(variables)
-                    obj_int_coeffs.extend(coeffs)
+        # # Weekly sum constraints
+        # for ct in self.weekly_sum_constraints:
+        #     shift, hard_min, soft_min, min_cost, soft_max, hard_max, max_cost = ct
+        #     for e in range(self.num_employees):
+        #         for w in range(self.num_weeks):
+        #             works = [work[e, shift, d + w * 7] for d in range(7)]
+        #             variables, coeffs = self.add_soft_sum_constraint(
+        #                 self.model, works, hard_min, soft_min, min_cost, soft_max,
+        #                 hard_max, max_cost, f'weekly_sum_constraint(Doctor {e}, {shift}, week {w})')
+        #             obj_int_vars.extend(variables)
+        #             obj_int_coeffs.extend(coeffs)
 
         # Penalized transitions
         for previous_shift, next_shift, cost in self.penalized_transitions:
-            for e in range(self.num_employees):
+            for e in self.doc:
                 for d in range(self.num_days - 1):
                     transition = [
                         work[e, previous_shift, d].Not(), work[e, next_shift,
@@ -140,29 +186,28 @@ class SchedualOptomizer:
                     if cost == 0:
                         self.model.AddBoolOr(transition)
                     else:
-                        trans_var = self.model.NewBoolVar(
-                            'transition (employee=%i, day=%i)' % (e, d))
+                        trans_var = self.model.NewBoolVar(f'transition (Doctor {e}, day {d})')
                         transition.append(trans_var)
                         self.model.AddBoolOr(transition)
                         obj_bool_vars.append(trans_var)
                         obj_bool_coeffs.append(cost)
 
-        # Cover constraints
-        for s in range(1, self.num_shifts):
-            for w in range(self.num_weeks):
-                for d in range(7):
-                    works = [work[e, s, w * 7 + d] for e in range(self.num_employees)]
-                    # Ignore Off shift.
-                    min_demand = self.weekly_cover_demands[d][s - 1]
-                    worked = self.model.NewIntVar(min_demand, self.num_employees, '')
-                    self.model.Add(worked == sum(works))
-                    over_penalty = self.excess_cover_penalties[s - 1]
-                    if over_penalty > 0:
-                        name = 'excess_demand(shift=%i, week=%i, day=%i)' % (s, w, d)
-                        excess = self.model.NewIntVar(0, self.num_employees - min_demand, name)
-                        self.model.Add(excess == worked - min_demand)
-                        obj_int_vars.append(excess)
-                        obj_int_coeffs.append(over_penalty)
+        # # Cover constraints
+        # for s in range(1, self.num_shifts):
+        #     for w in range(self.num_weeks):
+        #         for d in range(7):
+        #             works = [work[e, s, w * 7 + d] for e in range(self.num_employees)]
+        #             # Ignore Off shift.
+        #             min_demand = self.weekly_cover_demands[d][s - 1]
+        #             worked = self.model.NewIntVar(min_demand, self.num_employees, '')
+        #             self.model.Add(worked == sum(works))
+        #             over_penalty = self.excess_cover_penalties[s - 1]
+        #             if over_penalty > 0:
+        #                 name = 'excess_demand(shift=%i, week=%i, day=%i)' % (s, w, d)
+        #                 excess = self.model.NewIntVar(0, self.num_employees - min_demand, name)
+        #                 self.model.Add(excess == worked - min_demand)
+        #                 obj_int_vars.append(excess)
+        #                 obj_int_coeffs.append(over_penalty)
 
         # Objective
         self.model.Minimize(
@@ -362,50 +407,3 @@ def negated_bounded_span(works, start, length):
     if start + length < len(works):
         sequence.append(works[start + length])
     return sequence
-
-
-
-
-def solve_shift_scheduling(params, output_proto, fixed_assignments=None, requests=None, shift_constraints=None,
-                           weekly_sum_constraints=None, penalized_transitions=None, weekly_cover_demands=None):
-    """Solves the shift scheduling problem."""
-    # Data
-    # Shift constraints on continuous sequence :
-    #     (shift, hard_min, soft_min, min_penalty,
-    #             soft_max, hard_max, max_penalty)
-    ###
-    # Weekly sum constraints on shifts days:
-    #     (shift, hard_min, soft_min, min_penalty,
-    #             soft_max, hard_max, max_penalty)
-    ###
-    # Fixed assignment: (employee, shift, day).
-    ###
-    # Request: (employee, shift, day, weight)
-    # A negative weight indicates that the employee desire this assignment.
-    """
-    shift_constraints = [
-        # One or two consecutive days of rest, this is a hard constraint.
-        (0, 1, 1, 0, 2, 2, 0),
-        # between 2 and 3 consecutive days of night shifts, 1 and 4 are
-        # possible but penalized.
-        (3, 1, 2, 20, 3, 4, 5),
-    ]
-
-    # This fixes the first 2 days of the schedule.
-    fixed_assignments = [
-        (0, 0, 0),
-        (1, 0, 0),
-
-    ]
-        # Penalized transitions:
-    #     (previous_shift, next_shift, penalty (0 means forbidden))
-"""
-
-
-
-
-
-
-if __name__ == '__main__':
-
-    app.run(main)

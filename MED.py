@@ -76,8 +76,8 @@ class Window(QMainWindow):
         # add 'avail': {'pacient':'arno', 'room':4}
 
     def solve_doc(self):
-        self.save_l.sa = True
-        self.save_l.on_save_load()
+        self.solver.set_constraints(self.doc_data2, QDate.currentDate())  # todo next day
+        self.solver.run_main()
 
     def load_doc(self):
         # assume overrite for now
@@ -208,6 +208,8 @@ class Window(QMainWindow):
         elif i == 'Date Format':
             for r in self.date_list.values():
                 r.setDisplayFormat(ex)
+                self.doc_stat.reset_table()
+                self.day_stat.reset_table()
         elif i == 'Save':
 
             self._save_user_settings()
@@ -387,6 +389,7 @@ class Window(QMainWindow):
             setting = QSettings('Claassens Software', 'Calling LLB_2022_open')
             setting.setValue('Load Last Session', self.load_d)
             setting.setValue('Show on Startup', self.on_start)
+
 
     def closeEvent(self, event):
 
