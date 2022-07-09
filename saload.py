@@ -21,7 +21,7 @@ def save_json(file, data):
 def save_ex(file, data):
     print('oad ex')
     writer = pd.ExcelWriter(file)
-    data.to_excel(writer)
+    data.to_excel(writer,sheet_name='Days')
 
 
 def load_csv(file):
@@ -117,8 +117,9 @@ class saveLoad(QFileDialog):
             self.accepted.connect(self.end_fun)
             self.load_settings()
 
-    def on_save_fin(self):
-        file = self.selectedFiles()[0]
+    def on_save_fin(self, file=None):
+        if file is None:
+            file = self.selectedFiles()[0]
         if '.' not in file[-5:]:
             print('not in')
             filter_sel = self.selectedNameFilter()
@@ -202,7 +203,7 @@ class saveLoad(QFileDialog):
 
 
     def load_secdual(self, data):
-        print(data)
+        self.par.schedul = data['Days']
         pass
 
     def load_doc_info(self, data):  # note for doc excel
@@ -226,8 +227,8 @@ class saveLoad(QFileDialog):
 
     def save_secdual(self):
         print('save_doc_sch')
-        df = {'d': 20, 'x': 50}
-        print('data = ', df)
+        df = self.par.schedul
+        print('data = ', df.head())
         return df
 
     def save_settings(self):

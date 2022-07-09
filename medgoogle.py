@@ -1,16 +1,10 @@
 import pandas as pd
-from absl import app
-from absl import flags
+
 from PyQt5.QtCore import QDate
 
-from google.protobuf import text_format
 from ortools.sat.python import cp_model
 
-FLAGS = flags.FLAGS
-flags.DEFINE_string('output_proto', '',
-                    'Output file to write the cp_model proto to.')
-flags.DEFINE_string('params', 'max_time_in_seconds:10.0',
-                    'Sat solver parameters.')
+
 
 # todo hard vs soft away
 # todo calendar add dates add aways, export exel
@@ -21,19 +15,13 @@ flags.DEFINE_string('params', 'max_time_in_seconds:10.0',
 
 class SchedualOptomizer:
     def __init__(self):
-        self.app = app
+        # self.app = app
         self.num_employees = 5
-        self.num_weeks = 4
+        self.num_days = 30
         # Penalty for exceeding the cover constraint per shift type.
 
         self.shifts = ['Off', 'Call', 'Walkin']
-        self.num_days = self.num_weeks * 7
-
-    def run_main(self):
-        self.app.run(self.run_scedual)
-
-    def run_scedual(self, _=None):
-        self.solve_shift_scheduling(FLAGS.params, FLAGS.output_proto)
+        # self.num_days = self.num_weeks * 7
 
     def set_constraints(self, data,day,num_day=None):
         if num_day is not None:
@@ -44,10 +32,11 @@ class SchedualOptomizer:
         # todo combo contraints
         print('optom init')
         self.data = data
+        self.sch_data = pd.DataFrame(columns=['Days', 'Call', 'Walkin'])
         self.day = day
         self.data.fillna(0)
         print('got data')
-        self.doc = self.data.columns
+        self.doc = list(self.data.columns)[1:]
         self.model = cp_model.CpModel()
         self.weekly_sum_constraints = []
         # Weekly sum constraints on shifts days:
@@ -57,7 +46,7 @@ class SchedualOptomizer:
                             ('Call', 0, 1, 2, 2, 3, 7)]
         self.penalized_transitions = [
             ('Call', 'Call', 7),  # no doubles.
-            ('Walk_in', 'Walk_in', 7),
+            ('Walkin', 'Walkin', 7),
         ]
         # self.requests = [(3, 0, 5, -2),
         #     (4, 1, 10, -2),
@@ -77,7 +66,7 @@ class SchedualOptomizer:
             self.weekly_cover_demands.append((1, walk_in_need))
         print('fin data')
 
-    def solve_shift_scheduling(self, params, output_proto):
+    def solve_shift_scheduling(self):
         print('starting solve')
         work = {}
 
@@ -138,8 +127,8 @@ class SchedualOptomizer:
                 except TypeError or ValueError:
                     print('try failed')
                     continue
-                doc =list(self.doc)[n]
-                day = self.day.daysto(self.data.iloc[m,0])
+                doc =self.doc[n-1]
+                day = self.day.daysTo(self.data.iloc[m,0])
                 if day < 0:
                     continue
                 print(f'doc,day : ({doc},{day})')
@@ -151,31 +140,37 @@ class SchedualOptomizer:
                     print('weight != 5')
                     obj_bool_vars.append(work[doc, shif, day])
                     obj_bool_coeffs.append(-weight)
+                    print('---------Loaded Weight--------')
+                    print(f'W: {weight}\n Doc: {doc}\n Shift: {shif}\nDay: {day}\n--------')
 
         # Shift constraints
+        print('starting shift constraints')
         for ct in self.shift_constraints:
             shift, hard_min, soft_min, min_cost, soft_max, hard_max, max_cost = ct
             for e in self.doc:
+                print(f'doc: {e}, Shift: {shift}')
                 works = [work[e, shift, d] for d in range(self.num_days)]
-                variables, coeffs = self.add_soft_sequence_constraint(
-                    self.model, works, hard_min, soft_min, min_cost, soft_max, hard_max,
+                variables, coeffs = self.add_soft_sequence_constraint(works, hard_min, soft_min, min_cost, soft_max, hard_max,
                     max_cost,f'shift_constraint(Doctor {e}, {shift})')
+                print('ran vars')
                 obj_bool_vars.extend(variables)
                 obj_bool_coeffs.extend(coeffs)
+                print('extend')
 
+        print('sum contstaints temp unavail')
         # # Weekly sum constraints
         # for ct in self.weekly_sum_constraints:
         #     shift, hard_min, soft_min, min_cost, soft_max, hard_max, max_cost = ct
         #     for e in range(self.num_employees):
         #         for w in range(self.num_weeks):
         #             works = [work[e, shift, d + w * 7] for d in range(7)]
-        #             variables, coeffs = self.add_soft_sum_constraint(
-        #                 self.model, works, hard_min, soft_min, min_cost, soft_max,
+        #             variables, coeffs = self.add_soft_sum_constraint( works, hard_min, soft_min, min_cost, soft_max,
         #                 hard_max, max_cost, f'weekly_sum_constraint(Doctor {e}, {shift}, week {w})')
         #             obj_int_vars.extend(variables)
         #             obj_int_coeffs.extend(coeffs)
 
         # Penalized transitions
+        print('doing Penalized transitions')
         for previous_shift, next_shift, cost in self.penalized_transitions:
             for e in self.doc:
                 for d in range(self.num_days - 1):
@@ -192,6 +187,7 @@ class SchedualOptomizer:
                         obj_bool_vars.append(trans_var)
                         obj_bool_coeffs.append(cost)
 
+        print('cover contstaints temp unavail')
         # # Cover constraints
         # for s in range(1, self.num_shifts):
         #     for w in range(self.num_weeks):
@@ -209,6 +205,7 @@ class SchedualOptomizer:
         #                 obj_int_vars.append(excess)
         #                 obj_int_coeffs.append(over_penalty)
 
+        print('object')
         # Objective
         self.model.Minimize(
             sum(obj_bool_vars[i] * obj_bool_coeffs[i]
@@ -216,54 +213,65 @@ class SchedualOptomizer:
             sum(obj_int_vars[i] * obj_int_coeffs[i]
                 for i in range(len(obj_int_vars))))
 
-        if output_proto:
-            print('Writing proto to %s' % output_proto)
-            with open(output_proto, 'w') as text_file:
-                text_file.write(str(self.model))
+        # if output_proto:
+        #     print('Writing proto to %s' % output_proto)
+        #     with open(output_proto, 'w') as text_file:
+        #         text_file.write(str(self.model))
 
         # Solve the model.
         solver = cp_model.CpSolver()
-        if params:
-            text_format.Parse(params, solver.parameters)
+        # if params:
+        #     text_format.Parse(params, solver.parameters)
         solution_printer = cp_model.ObjectiveSolutionPrinter()
         status = solver.Solve(self.model, solution_printer)
 
         # Print solution.
         if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
             print()
-            header = '          '
-            for w in range(self.num_weeks):
-                header += 'M T W T F S S '
-            print(header)
-            for e in range(self.num_employees):
-                schedule = ''
-                for d in range(self.num_days):
-                    for s in range(self.num_shifts):
+            #header = '          '
+
+            # for w in range(self.num_weeks):
+            #     header += 'M T W T F S S '
+            # print(header)
+
+            for d in range(self.num_days):
+                day_info = [self.day.addDays(d),"",""]
+                for n,s in enumerate(self.shifts[1:]):
+                    for e in self.doc:
                         if solver.BooleanValue(work[e, s, d]):
-                            schedule += self.shifts[s] + ' '
-                print('worker %i: %s' % (e, schedule))
+                            day_info[n+1] = e
+                self.sch_data = pd.concat((self.sch_data, pd.DataFrame([day_info], columns=['Days', 'Call', 'Walkin'])),
+                                          ignore_index=True)
+                print('Day: {}, Call: {}, Walkin: {}'.format(*day_info))
+            # for e in self.doc:
+            #     schedule = ''
+            #     for d in range(self.num_days):
+            #         for s in self.shifts:
+            #             if solver.BooleanValue(work[e, s, d]):
+            #                 day = self.day.addDays(d)
+            #                 data = pd.concat((data, pd.DataFrame([day,e],columns=['Days', 'Call', 'Walkin'])))
+            #                 schedule += s + ' '
+            #     print(f'Doctor {e}: {schedule}')
                 # todo add to dataframe
-            print()
-            print('Penalties:')
+
+            print('\nPenalties:')
             for i, var in enumerate(obj_bool_vars):
                 if solver.BooleanValue(var):
                     penalty = obj_bool_coeffs[i]
                     if penalty > 0:
-                        print('  %s violated, penalty=%i' % (var.Name(), penalty))
+                        print(f'  {var.Name()} violated, penalty={penalty}')
                     else:
-                        print('  %s fulfilled, gain=%i' % (var.Name(), -penalty))
+                        print(f'  {var.Name()} fulfilled, gain={-penalty}')
 
             for i, var in enumerate(obj_int_vars):
                 if solver.Value(var) > 0:
-                    print('  %s violated by %i, linear penalty=%i' %
-                          (var.Name(), solver.Value(var), obj_int_coeffs[i]))
+                    print(f'  {var.Name()} violated by {solver.Value(var)}, linear penalty={obj_int_coeffs[i]}')
 
-        print()
-        print('Statistics')
-        print('  - status          : %s' % solver.StatusName(status))
-        print('  - conflicts       : %i' % solver.NumConflicts())
-        print('  - branches        : %i' % solver.NumBranches())
-        print('  - wall time       : %f s' % solver.WallTime())
+        print('\nStatistics')
+        print('  - status          : ', solver.StatusName(status))
+        print('  - conflicts       : ', solver.NumConflicts())
+        print('  - branches        : ', solver.NumBranches())
+        print(f'  - wall time       : {solver.WallTime()} s')
 
     def add_soft_sequence_constraint(self, works, hard_min, soft_min, min_cost,
                                      soft_max, hard_max, max_cost, prefix):
@@ -272,7 +280,6 @@ class SchedualOptomizer:
       assigned to true. If forbids sequence of length < hard_min or > hard_max.
       Then it creates penalty terms if the length is < soft_min or > soft_max.
       Args:
-        model: the sequence constraint is built on this model.
         works: a list of Boolean variables.
         hard_min: any sequence of true variables must have a length of at least
           hard_min.
@@ -303,7 +310,7 @@ class SchedualOptomizer:
             for length in range(hard_min, soft_min):
                 for start in range(len(works) - length + 1):
                     span = negated_bounded_span(works, start, length)
-                    name = ': under_span(start=%i, length=%i)' % (start, length)
+                    name = f': under_span(start={start}, length={length})'
                     lit = self.model.NewBoolVar(prefix + name)
                     span.append(lit)
                     self.model.AddBoolOr(span)
@@ -317,7 +324,7 @@ class SchedualOptomizer:
             for length in range(soft_max + 1, hard_max + 1):
                 for start in range(len(works) - length + 1):
                     span = negated_bounded_span(works, start, length)
-                    name = ': over_span(start=%i, length=%i)' % (start, length)
+                    name = ': over_span(start={start}, length={length})'
                     lit = self.model.NewBoolVar(prefix + name)
                     span.append(lit)
                     self.model.AddBoolOr(span)

@@ -48,7 +48,7 @@ class Window(QMainWindow):
 
         self.cmd_ls = {'Mode': ['Single', 'Range'],
                        'Start Week Format': ['Sun', 'Mon'],
-                       'Setting Mode': ['Call', 'WI', 'Away', 'Here'],
+                       'Setting Mode': ['Call', 'Walkin', 'Away', 'Here'],
                        'Date Format': [],
                        'Weekday Format': ['let', '3let', 'Full']}
 
@@ -69,15 +69,21 @@ class Window(QMainWindow):
         self.default_file = 'docInfoN.xlsx'
 
     def _set_dataframes(self):
-        self.schedul = pd.DataFrame(columns=['Date', 'Call', 'WI'])
+        self.schedul = pd.DataFrame(columns=['Days', 'Call', 'Walkin'])
         # self.doc_data2 = pd.DataFrame(columns=self.doc_data.keys())
         self.cmd_ls['Active Doc'] = list(self.doc_data.keys())
         # self.av = {columns=['Date']+self.cmd_ls['doc'])
         # add 'avail': {'pacient':'arno', 'room':4}
 
-    def solve_doc(self):
+    def _solve_doc(self):
+        # self.schedul
         self.solver.set_constraints(self.doc_data2, QDate.currentDate())  # todo next day
-        self.solver.run_main()
+        self.solver.solve_shift_scheduling()
+        print('yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy')
+        self.schedul = self.solver.sch_data  # todo overrite ask
+        self.save_l = saveLoad(self, True)
+        self.save_l.on_save_fin('DocSchedule.xlsx')  # todo if user asks
+        # self.save_l.on_save_fin('docDays.xlsx', 0)
 
     def load_doc(self):
         # assume overrite for now
@@ -147,7 +153,7 @@ class Window(QMainWindow):
                 self.tool_bar.addWidget(i.wig)
 
         # for selectic cal or walkin to edit, disable if not on cal, add conditional to tables
-        self.font_edit = SuperCombo('FontEdit', self, vals=['Call', 'WI'])
+        self.font_edit = SuperCombo('FontEdit', self, vals=['Call', 'Walkin'])
         self.tool_bar.addWidget(self.font_edit.wig)
 
         self.addToolBar(self.tool_bar)
@@ -200,7 +206,7 @@ class Window(QMainWindow):
         elif i == 'Mode':
             self.cal_wig.swap_select_mode(self.combo[i].currentText())
         elif i == 'solve':
-            self.solve_doc()
+            self._solve_doc()
             # self.solver.run_scedual()
 
         # elif i == 'Setting Mode':
@@ -235,13 +241,13 @@ class Window(QMainWindow):
 
     def doc_on_day(self, date):
         if isinstance(date, list):
-            scd = self.schedul.loc[self.schedul['Date'].isin(date)]
+            scd = self.schedul.loc[self.schedul['Days'].isin(date)]
             doc = list(scd['Call'])
-            doc_wi = list(scd['WI'])
+            doc_wi = list(scd['Walkin'])
         else:
-            scd = self.schedul.loc[self.schedul['Date'] == date]
+            scd = self.schedul.loc[self.schedul['Days'] == date]
             doc = list(scd['Call'])[0]
-            doc_wi = list(scd['WI'])[0]
+            doc_wi = list(scd['Walkin'])[0]
         return doc, doc_wi
 
     def test_doc(self):
@@ -252,7 +258,7 @@ class Window(QMainWindow):
             da = i % l_doc_l
             da_w = (i - 1) % l_doc_l
             df_l = [date, doc_l[da], doc_l[da_w]]
-            df = pd.DataFrame([df_l], columns=['Date', 'Call', 'WI'])
+            df = pd.DataFrame([df_l], columns=['Days', 'Call', 'Walkin'])
             self.schedul = pd.concat([self.schedul, df], ignore_index=True)
 
     def set_active_wig(self, wig):
@@ -293,7 +299,7 @@ class Window(QMainWindow):
 
         self.font_ty_default = {'Call': {'Font': QFont("Times"), 'Size': self.font_sizes[3],
                                          'Capital': self.cap_op[3], 'Color': QColor(Qt.blue)},
-                                'WI': {'Font': QFont("Times"), 'Size': self.font_sizes[0],
+                                'Walkin': {'Font': QFont("Times"), 'Size': self.font_sizes[0],
                                        'Capital': self.cap_op[0], 'Color': QColor(Qt.black)},
                                 'Doc Stats': {'Font': QFont("Times"), 'Size': self.font_sizes[1],
                                               'Capital': self.cap_op[0], 'Color': QColor(Qt.black)},
@@ -772,7 +778,7 @@ class CalendarDayDelegate(QItemDelegate):
 
             date = QDate(year, month, date_num_full)
 
-            if date in list(self.par.par.schedul['Date']):
+            if date in list(self.par.par.schedul['Days']):
                 doc = self.par.par.doc_on_day(date)
 
                 rect = option.rect
@@ -781,7 +787,7 @@ class CalendarDayDelegate(QItemDelegate):
                 painter.save()
                 d = self.par.par.font_ty
 
-                for n, i in enumerate(['Call', 'WI']):
+                for n, i in enumerate(['Call', 'Walkin']):
                     painter.setPen(d[i]['Color'])
                     font = d[i]['Font']
                     font.setPixelSize(d[i]['Size'])
