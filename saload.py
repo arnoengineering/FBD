@@ -18,10 +18,7 @@ def save_json(file, data):
     print('load json')
 
 
-def save_ex(file, data):
-    print('oad ex')
-    writer = pd.ExcelWriter(file)
-    data.to_excel(writer,sheet_name='Days')
+
 
 
 def load_csv(file):
@@ -67,13 +64,23 @@ class saveLoad(QFileDialog):
                           self.load_doc_info,  # of properties and delta t, ]
                           self.load_secdual]
 
-        self.save_fucs = {'excel': save_ex, 'csv': save_csv, 'json': save_json}
+        self.save_fucs = {'excel': self.save_ex, 'csv': save_csv, 'json': save_json}
         self.load_fucs = {'excel': load_ex, 'csv': load_csv, 'json': load_json}
 
         # self.currentChanged.connect(self._on_pox)
         # self._on_pox()
         # self._on_start()
         # self.save_settings()
+
+    def save_ex(self, file, data):
+        print('save ex')
+
+        with pd.ExcelWriter(file, engine="openpyxl") as writer:
+            data.to_excel(writer, sheet_name='Days', index='False')
+
+            pd.DataFrame({'Format': [self.par.combo['Date Format'].currentText()]}).to_excel(writer, sheet_name='Format',
+                                                                                           index=False)
+            print('saved')
 
     def on_save_load(self):
         self._on_save_load()
@@ -102,9 +109,8 @@ class saveLoad(QFileDialog):
         self.dia.exec()
 
     def _dia_acc(self):
-        setting_type = self.box.currentIndex()
+        self.f_ty = self.box.currentIndex()
         self.dia.accept()
-        self.fun = self.func[setting_type]
         #
 
     def _on_save_load(self):
@@ -117,9 +123,12 @@ class saveLoad(QFileDialog):
             self.accepted.connect(self.end_fun)
             self.load_settings()
 
-    def on_save_fin(self, file=None):
+    def on_save_fin(self, file=None, ty=None):
         if file is None:
             file = self.selectedFiles()[0]
+        if ty is None:
+            ty = self.f_ty
+
         if '.' not in file[-5:]:
             print('not in')
             filter_sel = self.selectedNameFilter()
@@ -127,7 +136,8 @@ class saveLoad(QFileDialog):
             file += fil
 
         ex = os.path.splitext(file)[-1]
-        data = self.fun()
+        fi = self.func[ty]
+        data = fi()
         type1 = 'excel'
 
         for i, j in self.f_t.items():
@@ -199,11 +209,14 @@ class saveLoad(QFileDialog):
     def load_doc_preferences(self, data):
         print(data)
         # doc_l =[x['Name'] for x in self.par.doc_data]
-        self.par.doc_data2 = data['Days']
-
+        self.par.doc_preferences = data['Days']
 
     def load_secdual(self, data):
-        self.par.schedul = data['Days']
+        self.par.current_schedule = data['Days']
+        try:
+            self.par.day_f = list(data['Format']['Format'])[0]
+        except KeyError:
+            raise ValueError('no Format')
         pass
 
     def load_doc_info(self, data):  # note for doc excel
@@ -224,10 +237,10 @@ class saveLoad(QFileDialog):
         print('data = ', df)
         return df
 
-
     def save_secdual(self):
         print('save_doc_sch')
-        df = self.par.schedul
+        df = self.par.current_schedule
+        df['Days'] = df['Days'].apply(lambda x: x.toString(self.par.combo['Date Format'].currentText()))
         print('data = ', df.head())
         return df
 

@@ -12,7 +12,7 @@ from ortools.sat.python import cp_model
 # todo how to add reqyests
         # todo walkin not as bad,
         # todo class?
-
+# todo menu
 class SchedualOptomizer:
     def __init__(self):
         # self.app = app
@@ -32,7 +32,7 @@ class SchedualOptomizer:
         # todo combo contraints
         print('optom init')
         self.data = data
-        self.sch_data = pd.DataFrame(columns=['Days', 'Call', 'Walkin'])
+        self.sch_data = pd.DataFrame(columns=['Days', 'Call', 'Walkin', 'Off', 'Away'])
         self.day = day
         self.data.fillna(0)
         print('got data')
@@ -48,10 +48,7 @@ class SchedualOptomizer:
             ('Call', 'Call', 7),  # no doubles.
             ('Walkin', 'Walkin', 7),
         ]
-        # self.requests = [(3, 0, 5, -2),
-        #     (4, 1, 10, -2),
-        #     (2, 0, 4, 4)]  # todo chech here
-        self.excess_cover_penalties = (2, 2,0)
+        self.excess_cover_penalties = (0,2, 2)
         self.fixed_assignments = []
 
         self.weekly_cover_demands = []
@@ -67,6 +64,15 @@ class SchedualOptomizer:
         print('fin data')
 
     def solve_shift_scheduling(self):
+        week_ls = self.day.weekNumber()
+        week_cnt = 0
+        for d in range(1, self.num_days):
+            day = self.day.addDays(d)
+            week_n = day.weekNumber()
+            if week_n != week_ls:
+                week_ls = week_n
+                week_cnt += 1
+
         print('starting solve')
         work = {}
 
@@ -91,17 +97,6 @@ class SchedualOptomizer:
                 print(f'e: {e}, d: {d}')
                 self.model.AddExactlyOne(work[e, s, d] for s in self.shifts)  # leftoves in off
 
-        #     # Exactly one shift per day.
-        # for e in range(num_employees):
-        #     for w in range(num_weeks):
-        #         for d in range(7):
-        #             if d > 4:
-        #                 n = 1
-        #             else:
-        #                 n = 0
-        #             model.AddExactlyOne(work[e, s, d + w * 7] for s in range(num_shifts - n))  # leftoves in off
-        # for d in range(num_days-2,num_days):
-        #
         print('loading day per day')
         for s in self.shifts[1:]:
             for d in range(self.num_days):
@@ -158,16 +153,17 @@ class SchedualOptomizer:
                 print('extend')
 
         print('sum contstaints temp unavail')
-        # # Weekly sum constraints
-        # for ct in self.weekly_sum_constraints:
-        #     shift, hard_min, soft_min, min_cost, soft_max, hard_max, max_cost = ct
-        #     for e in range(self.num_employees):
-        #         for w in range(self.num_weeks):
-        #             works = [work[e, shift, d + w * 7] for d in range(7)]
-        #             variables, coeffs = self.add_soft_sum_constraint( works, hard_min, soft_min, min_cost, soft_max,
-        #                 hard_max, max_cost, f'weekly_sum_constraint(Doctor {e}, {shift}, week {w})')
-        #             obj_int_vars.extend(variables)
-        #             obj_int_coeffs.extend(coeffs)
+        # Weekly sum constraints
+
+        for ct in self.weekly_sum_constraints:
+            shift, hard_min, soft_min, min_cost, soft_max, hard_max, max_cost = ct
+            for e in self.doc:
+                for w in range(week_cnt):
+                    works = [work[e, shift, d] for d in range(self.num_days)]
+                    variables, coeffs = self.add_soft_sum_constraint(works, hard_min, soft_min, min_cost, soft_max,
+                        hard_max, max_cost, f'weekly_sum_constraint(Doctor {e}, {shift}, week {w})')
+                    obj_int_vars.extend(variables)
+                    obj_int_coeffs.extend(coeffs)
 
         # Penalized transitions
         print('doing Penalized transitions')
@@ -188,22 +184,28 @@ class SchedualOptomizer:
                         obj_bool_coeffs.append(cost)
 
         print('cover contstaints temp unavail')
-        # # Cover constraints
-        # for s in range(1, self.num_shifts):
-        #     for w in range(self.num_weeks):
-        #         for d in range(7):
-        #             works = [work[e, s, w * 7 + d] for e in range(self.num_employees)]
-        #             # Ignore Off shift.
-        #             min_demand = self.weekly_cover_demands[d][s - 1]
-        #             worked = self.model.NewIntVar(min_demand, self.num_employees, '')
-        #             self.model.Add(worked == sum(works))
-        #             over_penalty = self.excess_cover_penalties[s - 1]
-        #             if over_penalty > 0:
-        #                 name = 'excess_demand(shift=%i, week=%i, day=%i)' % (s, w, d)
-        #                 excess = self.model.NewIntVar(0, self.num_employees - min_demand, name)
-        #                 self.model.Add(excess == worked - min_demand)
-        #                 obj_int_vars.append(excess)
-        #                 obj_int_coeffs.append(over_penalty)
+        # Cover constraints
+        for d in range(self.num_days):  # todo start end
+            day = self.day.addDays(d)
+            if day.dayOfWeek() < 6:
+                cov = 1
+            else:
+                cov = 0
+            min_demand = (1, cov)
+            for n, s in enumerate(self.shifts[1:]):
+
+                works = [work[e, s, d] for e in self.doc]
+                # Ignore Off shift.
+
+                worked = self.model.NewIntVar(min_demand[n], 1, '')
+                self.model.Add(worked == sum(works))
+                over_penalty = self.excess_cover_penalties[n]
+                if over_penalty > 0:
+                    name = f'excess_demand(shift={s}, day={d})'
+                    excess = self.model.NewIntVar(0, len(self.doc) - min_demand[n], name)
+                    self.model.Add(excess == worked - min_demand[n])
+                    obj_int_vars.append(excess)
+                    obj_int_coeffs.append(over_penalty)
 
         print('object')
         # Objective
@@ -213,27 +215,15 @@ class SchedualOptomizer:
             sum(obj_int_vars[i] * obj_int_coeffs[i]
                 for i in range(len(obj_int_vars))))
 
-        # if output_proto:
-        #     print('Writing proto to %s' % output_proto)
-        #     with open(output_proto, 'w') as text_file:
-        #         text_file.write(str(self.model))
-
         # Solve the model.
         solver = cp_model.CpSolver()
-        # if params:
-        #     text_format.Parse(params, solver.parameters)
+
         solution_printer = cp_model.ObjectiveSolutionPrinter()
         status = solver.Solve(self.model, solution_printer)
 
         # Print solution.
         if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
             print()
-            #header = '          '
-
-            # for w in range(self.num_weeks):
-            #     header += 'M T W T F S S '
-            # print(header)
-
             for d in range(self.num_days):
                 day_info = [self.day.addDays(d),"",""]
                 for n,s in enumerate(self.shifts[1:]):
@@ -243,16 +233,6 @@ class SchedualOptomizer:
                 self.sch_data = pd.concat((self.sch_data, pd.DataFrame([day_info], columns=['Days', 'Call', 'Walkin'])),
                                           ignore_index=True)
                 print('Day: {}, Call: {}, Walkin: {}'.format(*day_info))
-            # for e in self.doc:
-            #     schedule = ''
-            #     for d in range(self.num_days):
-            #         for s in self.shifts:
-            #             if solver.BooleanValue(work[e, s, d]):
-            #                 day = self.day.addDays(d)
-            #                 data = pd.concat((data, pd.DataFrame([day,e],columns=['Days', 'Call', 'Walkin'])))
-            #                 schedule += s + ' '
-            #     print(f'Doctor {e}: {schedule}')
-                # todo add to dataframe
 
             print('\nPenalties:')
             for i, var in enumerate(obj_bool_vars):
@@ -275,29 +255,7 @@ class SchedualOptomizer:
 
     def add_soft_sequence_constraint(self, works, hard_min, soft_min, min_cost,
                                      soft_max, hard_max, max_cost, prefix):
-        """Sequence constraint on true variables with soft and hard bounds.
-      This constraint look at every maximal contiguous sequence of variables
-      assigned to true. If forbids sequence of length < hard_min or > hard_max.
-      Then it creates penalty terms if the length is < soft_min or > soft_max.
-      Args:
-        works: a list of Boolean variables.
-        hard_min: any sequence of true variables must have a length of at least
-          hard_min.
-        soft_min: any sequence should have a length of at least soft_min, or a
-          linear penalty on the delta will be added to the objective.
-        min_cost: the coefficient of the linear penalty if the length is less than
-          soft_min.
-        soft_max: any sequence should have a length of at most soft_max, or a linear
-          penalty on the delta will be added to the objective.
-        hard_max: any sequence of true variables must have a length of at most
-          hard_max.
-        max_cost: the coefficient of the linear penalty if the length is more than
-          soft_max.
-        prefix: a base name for penalty literals.
-      Returns:
-        a tuple (variables_list, coefficient_list) containing the different
-        penalties created by the sequence constraint.
-      """
+
         cost_literals = []
         cost_coefficients = []
         # Forbid sequences that are too short.
@@ -340,29 +298,7 @@ class SchedualOptomizer:
 
     def add_soft_sum_constraint(self, works, soft_min, hard_min, min_cost,
                                 soft_max, hard_max, max_cost, prefix):
-        """Sum constraint with soft and hard bounds.
-      This constraint counts the variables assigned to true from works.
-      If forbids sum < hard_min or > hard_max.
-      Then it creates penalty terms if the sum is < soft_min or > soft_max.
-      Args:
-        works: a list of Boolean variables.
-        hard_min: any sequence of true variables must have a sum of at least
-          hard_min.
-        soft_min: any sequence should have a sum of at least soft_min, or a linear
-          penalty on the delta will be added to the objective.
-        min_cost: the coefficient of the linear penalty if the sum is less than
-          soft_min.
-        soft_max: any sequence should have a sum of at most soft_max, or a linear
-          penalty on the delta will be added to the objective.
-        hard_max: any sequence of true variables must have a sum of at most
-          hard_max.
-        max_cost: the coefficient of the linear penalty if the sum is more than
-          soft_max.
-        prefix: a base name for penalty variables.
-      Returns:
-        a tuple (variables_list, coefficient_list) containing the different
-        penalties created by the sequence constraint.
-      """
+
         cost_variables = []
         cost_coefficients = []
         sum_var = self.model.NewIntVar(hard_min, hard_max, '')
@@ -391,19 +327,6 @@ class SchedualOptomizer:
         return cost_variables, cost_coefficients
 
 def negated_bounded_span(works, start, length):
-    """Filters an isolated sub-sequence of variables assined to True.
-  Extract the span of Boolean variables [start, start + length), negate them,
-  and if there is variables to the left/right of this span, surround the span by
-  them in non negated form.
-  Args:
-    works: a list of variables to extract the span from.
-    start: the start to the span.
-    length: the length of the span.
-  Returns:
-    a list of variables which conjunction will be false if the sub-list is
-    assigned to True, and correctly bounded by variables assigned to False,
-    or by the start or end of works.
-  """
     sequence = []
     # Left border (start of works, or works[start - 1])
     if start > 0:

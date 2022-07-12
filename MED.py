@@ -34,7 +34,7 @@ class Window(QMainWindow):
 
         self._set_dataframes()
 
-        self.test_doc()
+        # self.test_doc()
         self._creat_toolbar()
         self._create_tools()
         self._set_center()
@@ -44,13 +44,14 @@ class Window(QMainWindow):
         super().showEvent(event)
 
     def _set_list(self):
-        self.doc_data = {}
-
+        # self.doc_data = {}
+        self.save_l = saveLoad(self, False)
         self.cmd_ls = {'Mode': ['Single', 'Range'],
                        'Start Week Format': ['Sun', 'Mon'],
                        'Setting Mode': ['Call', 'Walkin', 'Away', 'Here'],
                        'Date Format': [],
-                       'Weekday Format': ['let', '3let', 'Full']}
+                       'Weekday Format': ['let', '3let', 'Full'],
+                       'Editing': ['Active Schedule', 'Preferences']}
 
         self.wn = 'Show/Hide Weeknumbers'
         self.button_list = ['solve', self.wn, 'Today', 'Apply', 'Save', 'Load', 'Add']
@@ -69,45 +70,53 @@ class Window(QMainWindow):
         self.default_file = 'docInfoN.xlsx'
 
     def _set_dataframes(self):
-        self.schedul = pd.DataFrame(columns=['Days', 'Call', 'Walkin'])
-        # self.doc_data2 = pd.DataFrame(columns=self.doc_data.keys())
-        self.cmd_ls['Active Doc'] = list(self.doc_data.keys())
-        # self.av = {columns=['Date']+self.cmd_ls['doc'])
-        # add 'avail': {'pacient':'arno', 'room':4}
+        self.cmd_ls['Active Doc'] = list(self.doc_data.columns)[1:]
 
     def _solve_doc(self):
         # self.schedul
-        self.solver.set_constraints(self.doc_data2, QDate.currentDate())  # todo next day
+        self.solver.set_constraints(self.doc_preferences, QDate.currentDate())  # todo next day
         self.solver.solve_shift_scheduling()
         print('yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy')
-        self.schedul = self.solver.sch_data  # todo overrite ask
-        self.save_l = saveLoad(self, True)
-        self.save_l.on_save_fin('DocSchedule.xlsx')  # todo if user asks
+        self.current_schedule = self.solver.sch_data  # todo overrite ask
+        self.save_l.sa = True
+        self.save_l.on_save_fin('DocSchedule.xlsx',2)  # todo if user asks
         # self.save_l.on_save_fin('docDays.xlsx', 0)
 
     def load_doc(self):
         # assume overrite for now
         # at end do save default or change
+        # load popup
+        # todo add compair
+        # todo chainge default userload
+        # edit schedule vs prefewrnces
+        # edit date list
+
         pass
 
     def _setup_load(self):
-        self.save_l = saveLoad(self, False)
-        ls = ['categories', 'time per patient']
+        def l2(x):
+            print('x =', type(x))
+            if isinstance(x,pd.DatetimeTZDtype):
+                return QDate(x.year, x.month, x.day)
+            else:
+                return QDate.fromString(x, self.day_f)
 
         if self.default_file:
             self.save_l.on_load_fin(self.default_file, 1)
             print('iiiio')
-        self._setup_load2()
-        # self.doc_info = {}
-        # for i in self.doc_data.keys():
-        #     self.doc_info[i] = self.doc_data[i][ls]
-        #     self.doc_data[i] = self.doc_data[i].loc[:, ~self.doc_data[i].columns.isin(ls)]
-
-    def _setup_load2(self):
-        self.save_l = saveLoad(self, False)  # todo add legend
-
         self.save_l.on_load_fin('docDays.xlsx', 0)
-        self.doc_data2['Days'] = self.doc_data2['Days'].apply(lambda x:QDate(x.year, x.month, x.day))
+        self.doc_preferences['Days'] = self.doc_preferences['Days'].apply(lambda x:QDate(x.year, x.month, x.day))
+
+        try:
+            self.save_l.on_load_fin('DocSchedule.xlsx', 2)  # todo try
+            self.current_schedule['Days'] = self.current_schedule['Days'].apply(l2)
+            print('fill na')
+            print(self.current_schedule.head())
+            self.current_schedule.fillna("", inplace=True)  # todo days
+            print('fill')
+            print(self.current_schedule.head())
+        except ValueError:
+            print('error loading doc')
 
     def _creat_toolbar(self):
         self.font_sizes = [7, 8, 9, 10, 11, 12, 13, 14, 18, 24, 36, 48, 64, 72, 96, 144, 288]
@@ -231,35 +240,80 @@ class Window(QMainWindow):
         elif i == "Today":
             self.cal_wig.set_today()
         elif i == "Apply":
-            self.run_doc_solve()
+            self._run_doc_solve()
 
-    def run_doc_solve(self):
-        for day in self.cal_wig.full_date_list:
-            print(f'Day {day}, doc {self.combo["doc"].currentText()}, status {self.set_mode}')
-            # self.av[day][self.active_doc]['Status'] = self.set_mode
-        # doc_on_day()
+    def _dia_ax(self):
+        self.val = int(self.wi.text()) # todo fix user data, todo nan fill todo click drag, todo show whose here
+        if not self.dia.wig_o.isChecked():
+            self.val *= -1
+        self.dia.accept()
+
+    def _run_doc_solve(self):
+
+        edit_type = self.combo['Editing'].currentText()
+        mode_ty = self.combo['Setting Mode'].currentText()
+        doc = self.combo['Active Doc'].currentText()
+
+        self.dia = QDialog()
+        self.dia.lay = QVBoxLayout()
+
+        self.dia.wig_o = QCheckBox('Want')
+        self.dia.wig_o.setChecked(True)
+
+        self.wi = QLineEdit()
+        if mode_ty == 'Here':
+            self.wi.setText('0')
+            self.wi.setEnabled(False)
+            self.dia.wig_o.setEnabled(False)
+        else:
+            self.wi.setText('5')
+
+        self.dia.buttonBox = QDialogButtonBox(self.dia)
+        self.dia.buttonBox.setOrientation(Qt.Horizontal)
+        self.dia.buttonBox.setStandardButtons(QDialogButtonBox.Cancel | QDialogButtonBox.Save)  # todo default
+        self.dia.buttonBox.setCenterButtons(False)
+
+        self.dia.buttonBox.accepted.connect(self._dia_ax)
+        self.dia.buttonBox.rejected.connect(self.dia.reject)
+        if edit_type == 'Preferences':
+            data = self.doc_prefernces
+            self.dia.lay.addWidget(QLabel('v 1,5'))
+            self.dia.lay.addWidget(self.dia.wig_o)
+            self.dia.lay.addWidget(self.wi)
+
+        else:
+            data = self.current_schedule
+
+        self.dia.lay.addWidget(self.dia.buttonBox)
+        self.dia.setLayout(self.dia.lay)
+        dia_re = self.dia.exec()
+        if dia_re:
+            print('yes updating')
+            v2 = mode_ty
+            if edit_type == 'Preferences':
+
+                v2 += '_' + str(self.val)  # todo away
+                print('prefernces: val: ', v2)
+                for day in self.cal_wig.full_date_list:
+                    r = list(data['Days']).index(day)
+                    data.at[r,doc] = v2
+            else:
+                print('sched: val: ', v2)
+                for day in self.cal_wig.full_date_list:
+                    r = list(data['Days']).index(day)
+                    data.at[r, v2] = doc
+                # self.current_schedule.at  # todo rightclick whos here
 
     def doc_on_day(self, date):
         if isinstance(date, list):
-            scd = self.schedul.loc[self.schedul['Days'].isin(date)]
+            scd = self.current_schedule.loc[self.current_schedule['Days'].isin(date)]
             doc = list(scd['Call'])
-            doc_wi = list(scd['Walkin'])
+            doc_wi = list(scd['Walkin'])  # todo here
         else:
-            scd = self.schedul.loc[self.schedul['Days'] == date]
+            scd = self.current_schedule.loc[self.current_schedule['Days'] == date]
             doc = list(scd['Call'])[0]
             doc_wi = list(scd['Walkin'])[0]
         return doc, doc_wi
-
-    def test_doc(self):
-        doc_l = ['Dehlen', 'DeRider', 'Lategan']
-        l_doc_l = len(doc_l)
-        for i in range(1, 30):
-            date = QDate(2022, 6, i)
-            da = i % l_doc_l
-            da_w = (i - 1) % l_doc_l
-            df_l = [date, doc_l[da], doc_l[da_w]]
-            df = pd.DataFrame([df_l], columns=['Days', 'Call', 'Walkin'])
-            self.schedul = pd.concat([self.schedul, df], ignore_index=True)
 
     def set_active_wig(self, wig):
         self.active_wig = wig
@@ -336,12 +390,6 @@ class Window(QMainWindow):
             if j in k:
                 i(self.settings.value(j))
 
-        # for child in self.findChildren((Calendar, DocStatus)):
-        #     print(' child found to be read: ', child)
-        #     self.settings.beginGroup(child.objectName())
-        #     child.restoreGeometry(self.settings.value("Geometry"))
-        #     self.settings.endGroup()
-
     def set_date_format(self):
         conect = ['.', '/', ',', '-', ' ']
         y = 'yyyy'
@@ -400,7 +448,7 @@ class Window(QMainWindow):
     def closeEvent(self, event):
 
         self.user_settings(self.load_d)
-        super().closeEvent(event)
+        super().closeEvent(event)  # todo unsaved changes, todo overwrite
 
 
 class Calendar(QCalendarWidget):
@@ -557,7 +605,7 @@ class DocStatus(QTableWidget):  # self.doc_dataframe_items
 
     def reset_table(self):
         self.clear()
-        dd = self.par.doc_data2
+        dd = self.par.doc_preferences
 
         r, c = dd.shape
 
@@ -778,7 +826,7 @@ class CalendarDayDelegate(QItemDelegate):
 
             date = QDate(year, month, date_num_full)
 
-            if date in list(self.par.par.schedul['Days']):
+            if date in list(self.par.par.current_schedule['Days']):
                 doc = self.par.par.doc_on_day(date)
 
                 rect = option.rect
