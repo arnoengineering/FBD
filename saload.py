@@ -76,7 +76,7 @@ class saveLoad(QFileDialog):
         print('save ex')
 
         with pd.ExcelWriter(file, engine="openpyxl") as writer:
-            data.to_excel(writer, sheet_name='Days', index='False')
+            data.to_excel(writer, sheet_name='Days', index=False)
 
             pd.DataFrame({'Format': [self.par.combo['Date Format'].currentText()]}).to_excel(writer, sheet_name='Format',
                                                                                            index=False)
@@ -222,7 +222,7 @@ class saveLoad(QFileDialog):
     def load_doc_info(self, data):  # note for doc excel
         print(data)
         # doc_l =[x['Name'] for x in self.par.doc_data]
-        self.par.doc_data = data['Info']
+        self.par.doc_data = data['Sheet1']
 
 
     def save_doc_preferences(self):

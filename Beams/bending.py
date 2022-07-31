@@ -7,7 +7,7 @@ from sympy.physics.vector import *
 import matplotlib.pyplot as plt
 # from sympy.printing import *
 # from IPython.display import display, Latex
-from numpy import sin, cos, tan, norm, pi, zeros
+from numpy import sin, cos, tan, pi, zeros
 from sympy.printing import latex
 from beam_tables import *
 
@@ -397,6 +397,8 @@ class Moment(Force):
         super().__init__(n)
         self.order = -2
         self.ty = 2
+        self.r = 2
+        self.l2 = []
 
     def single(self, plane):
         # 3 =
@@ -411,14 +413,14 @@ class Moment(Force):
             print(i[:2],points_2[2][:2])
             for i in self.l2:
                 painter.drawLine(*self.lin_dir, *i)
-            for i in l2:
+            for i in l2x:
                 painter.drawLine(*self.loc_x[:2], *i[:2])
 
     def _m_t2(self, painter):
         if isinstance(self.M, sy.Symbol):  # todo replace with solved M, add var on hgover
             li = (0, self.default_size, 0)
         else:
-            li = ri
+            li = self.M
         poi = np.array(((0,1,0), (0.5, 1.866, 0), (-0.5, 1.866, 0))) * self.lr * li / norm(li)
         painter.drawArc(self.loc_x, self.loc_x + (self.r * self.lr, 0), self.lin_dir)
         return self.loc_x - poi, self.loc_x - li * self.pix_per_m
@@ -442,7 +444,7 @@ class DisLoadRamp(Force):
     def single(self, plane):
         a, b = self.loc[plane[0]], self.loc_e[plane[0]]
         ave_f = self.M[plane[1]] / (a - b)
-        return ave_f * sf(x, a, 1) - ave_f * sf(x, b, 1) - self.M[plane[1]]  * sf(x, b, 0)
+        return ave_f * sf(x, a, 1) - ave_f * sf(x, b, 1) - self.M[plane[1]] * sf(x, b, 0)
 
 
 class DisLoadConst(Force):
@@ -537,14 +539,12 @@ class dispMF(QWidget):
         self.m = -1  # dir, isomet
 
 
-
-
 class beamWidget(QWidget):
-    def __init__(self, par, th):
+    def __init__(self, par): # , th):
         super().__init__()
         self.pix_per_m = 20
         self.par = par
-        self.th = th
+        # self.th = th
 
     def paintEvent(self, event):
         h = 0.5
@@ -564,7 +564,7 @@ class Window(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('QMainWindow')
-        self.cen = beamWidget()
+        self.cen = beamWidget(self,)
         self.setCentralWidget(self.cen)
         self._create_tools()
         self._create_beam()
