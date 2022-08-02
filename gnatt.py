@@ -18,6 +18,14 @@ def sort_day(ls):
     ls.sort(key=lambda x: x.toString(Qt.TextDate))
 
 
+def load_ex(file) -> pd.DataFrame:
+    xl = pd.ExcelFile(file)
+    data = {}
+    docs = xl.sheet_names
+    for sheet in docs:
+        data[sheet] = pd.read_excel(xl, sheet_name=sheet)
+    return data['Sheet1']
+
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -50,14 +58,12 @@ class Window(QMainWindow):
     def _set_list(self):
         # self.doc_data = {}
         self.save_l = saveLoad(self, False)
-        self.cmd_ls = {'Mode': ['Single_calendar-select', 'Range_calendar-select-days-span'],
+        self.cmd_ls = {
                        'Start Week Format': ['Sun', 'Mon'],
                        'Setting Mode': ['Call', 'Walkin', 'Away', 'Off'],
                        'Want Shift': ['Yes', 'No'],
-                       'Pref': ['1', '2', '3','4','5'],
                        'Date Format': [],
-                       'Weekday Format': ['let', '3let', 'Full'],
-                       'Editing': ['Active Schedule_calendar-task', 'Preferences_calendar_pencil']}
+                       'Weekday Format': ['let', '3let', 'Full']}
 
         self.wn = 'Show/Hide Weeknumbers_eye-half'
         self.button_list = ['solve_calculator--arrow', self.wn,
@@ -79,7 +85,7 @@ class Window(QMainWindow):
         self.default_file = 'docInfoN.xlsx'  # todo look at info, add month grouper,
 
     def _set_dataframes(self):
-        self.cmd_ls['Active Doc'] = list(self.doc_data.columns)[1:]
+        pass
 
     def load_doc(self):
         # assume overrite for now
@@ -93,6 +99,7 @@ class Window(QMainWindow):
 
         pass
 
+
     def _setup_load(self):
         def l2(x):
             # print('x =', type(x))
@@ -103,22 +110,14 @@ class Window(QMainWindow):
             else:
                 return QDate.fromString(x, self.day_f)
 
-        self.doc_info = pd.DataFrame({'Activity': ['Activity 1'], 'due':['30 aug'], 'estim days':[30],
-                                      'on time': ['true'], max start, planded start planed end, actual start actual time, actual end, cersenct done, done})
+        self.project_schedule = load_ex('gnatt.xlsx')
+        # self.project_schedule['Planed End'] = self.project_schedule['Planed Start']+self.project_schedule['Planed Duration']
+        # self.project_schedule['Latest Start'] = self.project_schedule['Due'] - self.project_schedule[
+        #     'Planed Duration']
+        self.project_schedule['Percent Complete'] = self.project_schedule['Percent Complete'].apply(lambda x: round(x,2))
+        self.project_schedule['Done'] = self.project_schedule['Actual End'].apply(lambda x: not pd.isna(x))
 
-        #$ take dir then cack all them append to other data
-        self.doc_preferences['Days'] = self.doc_preferences['Days'].apply(l2)
-
-        try:
-            self.save_l.on_load_fin('DocSchedule.xlsx', 2)  # todo try
-            self.current_schedule['Days'] = self.current_schedule['Days'].apply(l2)
-            print('fill na')
-            print(self.current_schedule.head())
-            self.current_schedule.fillna("", inplace=True)  # todo days
-            print('fill')
-            print(self.current_schedule.head())
-        except ValueError:
-            print('error loading doc')
+        #self.project_schedule['Actual Duration'] = self.project_schedule['Actual End'] - self.project_schedule['Actual Start']
 
     def _creat_toolbar(self):
         self.font_sizes = [7, 8, 9, 10, 11, 12, 13, 14, 18, 24, 36, 48, 64, 72, 96, 144, 288]
@@ -250,39 +249,6 @@ class Window(QMainWindow):
         elif i == "Apply":
             self._run_doc_solve()
 
-    def add_doc(self):
-        doc = self.combo['Active Doc'].currentText()
-        pre = self.combo['Pref'].currentText()
-        want = self.combo['Want Shift'].currentText()
-        shift = self.combo['Setting Mode'].currentText()
-        edit_type =self.combo['Editing'].currentText()
-        df_p = {'Days': [], 'Doc': [doc], 'Shift': [shift]}
-        if want == 'No':
-            pre *= -1
-        if edit_type == 'Preferences':
-            data = self.doc_prefernces
-            df_p['Pref']= [pre]
-            tx = 'Preferences'
-        else:
-            data = self.current_schedule
-            tx = 'sched'
-        # todo set all enabled
-        for ii in self.cal_wig.full_date_list:
-            print(f'{tx}: val: {ii},doc:{doc}, shift:{shift}')
-            df_p['Days'] = [ii]
-            if edit_type == 'Active Schedule':
-                data.loc[(data['Shift'] == shift) & (data['Days'] == ii), 'Doc'] = doc# todo ocrrect
-            elif ii in data.loc[data['Doc']==doc,['Days']]:
-                print('overwrite')
-                data.loc[(data['Doc'] == doc)&(data['Days']==ii)] = pd.DataFrame(df_p)
-            else:
-                data = pd.concat((data,pd.DataFrame(df_p)))  # todo current scedual
-
-    def _dia_ax(self):
-        self.val = int(self.wi.text()) # todo fix user data, todo nan fill todo click drag, todo show whose here
-        if not self.dia.wig_o.isChecked():
-            self.val *= -1
-        self.dia.accept()
 
     def _solve_doc(self):
         # self.schedul
@@ -349,15 +315,10 @@ class Window(QMainWindow):
         self.setting_keys_combo = {'Date Format': 'dd-MMM-yyyy',  # y-m-d,y-d-m,d-m-y,m-d-y
                                    'Weekday Format': 'let',  # long,sort,,let
                                    'Start Week Format': 'Sun',
-                                   'Mode': 'Single',
-                                   'Active Doc': 'Dehlen',
-                                   'Setting Mode': 'Call',
                                    }
 
         self.font_ty_default = {'Call': {'Font': QFont("Times"), 'Size': self.font_sizes[3],
                                          'Capital': self.cap_op[3], 'Color': QColor(Qt.blue)},
-                                'Walkin': {'Font': QFont("Times"), 'Size': self.font_sizes[0],
-                                       'Capital': self.cap_op[0], 'Color': QColor(Qt.black)},
                                 'Doc Stats': {'Font': QFont("Times"), 'Size': self.font_sizes[1],
                                               'Capital': self.cap_op[0], 'Color': QColor(Qt.black)},
                                 'Dayly Stats': {'Font': QFont("Times"), 'Size': self.font_sizes[0],
@@ -675,10 +636,18 @@ class CalendarDayDelegate(QItemDelegate):
         super(CalendarDayDelegate, self).__init__(parent=parent)
 
         self.projects = projects
+        # self.items_ls = {'Call': '', }
         self.par = par
-        self.last_month = True
+        self.labs = []
+        self.space = 0.7
+        self.space_ver = 0.15
+        self.op = [Qt.AlignCenter | Qt.AlignVCenter,
+                   Qt.AlignRight | Qt.AlignBottom,
+                   Qt.AlignLeft | Qt.AlignBottom,
+                   Qt.AlignRight | Qt.AlignTop]
+        self.last_month = True  # todo reset and if overlap
 
-    def paint(self, painter, option, index):
+    def paint(self, painter: QPainter, option, index):
 
         painter._date_flag = index.row() > 0
         super(CalendarDayDelegate, self).paint(painter, option, index)
@@ -703,28 +672,40 @@ class CalendarDayDelegate(QItemDelegate):
                     month += 1
 
             date = QDate(year, month, date_num_full)
+            painter.save()
+            rect = option.rect
+            x, y, w, h = rect.getRect()
+            # todo check for if date in
+            # for n, i in enumerate(self.par.par.project_schedule.head()['Activity']):
+            #     doc = self.par.par.doc_on_day(date, [i])[0]
+            #
+            #     # back_color = Qt.red
+            #     siz = int(w * self.space)
+            #     size_v = int(w * self.space_ver)
+            #     if doc == 'Call':
+            #         size_v += 10
+            #     x0 = x + w - siz - 2
+            #     if doc != "":
+            #         rect2 = QRect(x0, y + 2, siz, size_v)
+            #         d = self.par.par.font_ty
+            #
+            #         font = d[i]['Font']
+            #         font.setPixelSize(d[i]['Size'])
+            #         # QFont()
+            #         font.setCapitalization(self.par.par.cap_op.index(d[i]['Capital']))
+            #         painter.setFont(font)
+            #         align = self.op[n]
+            #         # te = doc[n]
+            #         doc_col = d[i]['Color']
+            #         back_color = d[i]['Fill']
+            #         y += size_v + 2
+            #
+            #         painter.setBrush(back_color)
+            #         painter.drawRect(rect2)
+            #         painter.setPen(doc_col)
+            #         painter.drawText(rect2, align, doc)  # , option=)
 
-            if date in list(self.par.par.current_schedule['Days']):
-                doc = self.par.par.doc_on_day(date)
-
-                rect = option.rect
-                op = [Qt.AlignCenter | Qt.AlignVCenter, Qt.AlignRight | Qt.AlignBottom]
-
-                painter.save()
-                d = self.par.par.font_ty
-
-                for n, i in enumerate(['Call', 'Walkin']):
-                    painter.setPen(d[i]['Color'])
-                    font = d[i]['Font']
-                    font.setPixelSize(d[i]['Size'])
-                    # QFont()
-                    font.setCapitalization(self.par.par.cap_op.index(d[i]['Capital']))
-                    painter.setFont(font)
-                    align = op[n]
-                    te = doc[n]
-                    painter.drawText(rect, align, te)# , option=)
-
-                painter.restore()
+            painter.restore()
 
     def drawDisplay(self, painter, option, rect, text):
         if painter._date_flag:

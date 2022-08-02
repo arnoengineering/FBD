@@ -13,6 +13,8 @@ from medgoogle import SchedualOptomizer
 from piv_edit import pivotDialog
 from saload import saveLoad
 
+from cal_exp import calendarEdit
+
 
 # todo mail
 # todo exe
@@ -78,7 +80,7 @@ class Window(QMainWindow):
         self.button_list = ['solve_calculator--arrow', self.wn,
                             'Today_calendar-day', 'Save_disk-black',
                             'Load_document-excel-table',
-                            'Add_calendar--plus']
+                            'Add_calendar--plus', 'Cal Exp']  # todo add icon
 
         self.date_n = ['StartDate', 'EndDate']  # calselect days
 
@@ -275,6 +277,13 @@ class Window(QMainWindow):
         elif i == "Apply":
             self._run_doc_solve()
 
+        elif i == 'Cal Exp':
+            self.c_exp()
+
+    def c_exp(self):
+        cal = calendarEdit(self,self.current_schedule)
+        file_ls = cal.doc_save() # todo user email list
+
     def run_set(self):
         pass
 
@@ -294,27 +303,26 @@ class Window(QMainWindow):
         else:
             data = self.current_schedule
             tx = 'sched'
-        # todo set all enabled
+
         for ii in self.cal_wig.full_date_list:
             print(f'{tx}: val: {ii},doc:{doc}, shift:{shift}')
             df_p['Days'] = [ii]
             if edit_type == 'Active Schedule':
-                data.loc[(data['Shift'] == shift) & (data['Days'] == ii), 'Doc'] = doc  # todo ocrrect
+                data.loc[(data['Shift'] == shift) & (data['Days'] == ii), 'Doc'] = doc
             elif ii in data.loc[data['Doc'] == doc, ['Days']]:
                 print('overwrite')
                 data.loc[(data['Doc'] == doc) & (data['Days'] == ii)] = pd.DataFrame(df_p)
             else:
-                data = pd.concat((data, pd.DataFrame(df_p)))  # todo current scedual
-
+                data = pd.concat((data, pd.DataFrame(df_p)))
     def _dia_ax(self):
-        self.val = int(self.wi.text())  # todo fix user data, todo nan fill todo click drag, todo show whose here
+        self.val = int(self.wi.text())
         if not self.dia.wig_o.isChecked():
             self.val *= -1
         self.dia.accept()
 
     def _solve_doc(self):
         # self.schedul
-        self.solver.set_constraints(self.doc_preferences, QDate.currentDate())  # todo next day
+        self.solver.set_constraints(self.doc_preferences, QDate.currentDate())
         self.solver.solve_shift_scheduling()
         print('yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy')
         self.current_schedule = self.solver.sch_data  # todo overrite ask
@@ -896,7 +904,7 @@ class CalendarDayDelegate(QItemDelegate):
                 # back_color = Qt.red
                 siz = int(w * self.space)
                 size_v = int(w * self.space_ver)
-                if doc == 'Call':
+                if i == 'Call':
                     size_v += 10
                 x0 = x + w - siz - 2
                 if doc != "":
