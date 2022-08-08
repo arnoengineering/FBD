@@ -9,6 +9,36 @@ import sys
 import threading
 
 
+def pos_adj(self, pos, func):
+    jk = self.over_header_edge(pos)
+    if jk is not None:
+
+        if self.orientation == Qt.Horizontal:
+            func(True, jk)
+        elif self.orientation == Qt.Vertical:
+            func(False, jk)
+        return True
+    else:
+        self.header_being_resized = None
+
+
+# @self
+def auto_rc(self, a1, pos):
+    if a1:
+        self.parent.auto_size_column(pos)
+    else:
+        self.parent.auto_size_row(pos)
+
+
+def resize_start(self, a1, pos):
+    self.header_being_resized = pos
+    self.resize_start_position = pos
+    if a1:
+        self.initial_header_size = self.columnWidth(self.header_being_resized)
+    else:
+        self.initial_header_size = self.rowHeight(self.header_being_resized)
+
+
 class DataFrameViewer(QtWidgets.QWidget):
     """
     Displays a DataFrame as a table.
@@ -196,7 +226,6 @@ class DataFrameViewer(QtWidgets.QWidget):
         for item in self.data_items:
             item.setData(self.df)
 
-
     def keyPressEvent(self, event):
 
         QtWidgets.QWidget.keyPressEvent(self, event)
@@ -281,14 +310,13 @@ class DataTableModel(QtCore.QAbstractTableModel):
                 elif role == QtCore.Qt.DecorationRole:
 
                     return QtGui.QIcon('icons/calendar.png')
-            # elif (self.df.columns.values[col] == 'Doc' or self.df.index.values[row]== 'Doc')and role == QtCore.Qt.DecorationRole:
-            #     # todo if multindex
-            #     id2 = self.par.par.doc_data.loc[self.par.par.doc_data['Doc']==cell,'Gender']
-            #     if id2.values[0] == 'Male':
-            #         ids = 'icons/user-medical.png'
-            #     else:
-            #         ids = 'icons/user-medical-female.png'
-            #     return QtGui.QIcon(ids)
+            elif (self.df.columns.values[col] == 'Doc' or self.df.index.values[row]== 'Doc')and role == QtCore.Qt.DecorationRole:
+                id2 = self.par.par.doc_data.loc[self.par.par.doc_data['Doc']==cell,'Gender']
+                if id2.values[0] == 'Male':
+                    ids = 'icons/user-medical.png'
+                else:
+                    ids = 'icons/user-medical-female.png'
+                return QtGui.QIcon(ids)
             else:
                 return str(cell)
 
@@ -327,14 +355,24 @@ class DataTableView(QtWidgets.QTableView):
     Displays the DataFrame data as a table
     """
 
-    def __init__(self, df, parent):
+    def __init__(self, df, parent, orientation=None):
         super().__init__(parent)
         self.parent = parent
+        self.orientation = orientation
+        self.setMouseTracking(True)
 
         # Create and set model
+
+
+        # These are used during column resizing
+        self.header_being_resized = None
+        self.resize_start_position = None
+        self.initial_header_size = None
+        self._init_0(df)
+
+    def _init_0(self, df):
         self.data_model = DataTableModel(df, self.parent)
         self.setModel(self.data_model)
-
         # Hide the headers. The DataFrame headers (index & columns) will be displayed in the DataFrameHeaderViews
         self.horizontalHeader().hide()
         self.verticalHeader().hide()
@@ -427,6 +465,124 @@ class DataTableView(QtWidgets.QTableView):
         m.df = df
         m.layoutChanged.emit()
 
+    def pos_adj(self, event, func):
+        pos = self.orient(event)
+        jk = self.over_header_edge(event)
+        print(f'Pos: {pos}, iscol: {jk}')
+        if jk is not None:
+            func(self.orientation == Qt.Horizontal, jk,pos)
+            return True
+        else:
+            self.header_being_resized = None
+
+        # @self
+
+    def auto_rc(self, a1, *pos):
+        if a1:
+            self.parent.auto_size_column(pos[0])
+        else:
+            self.parent.auto_size_row(pos[0])
+
+    def resize_start(self, a1, *pos):
+        self.header_being_resized = pos[0]
+        self.resize_start_position = pos[1]
+        if a1:
+            self.initial_header_size = self.columnWidth(self.header_being_resized)
+        else:
+            self.initial_header_size = self.rowHeight(self.header_being_resized)
+
+    def orient(self,event):
+        if self.orientation == Qt.Horizontal:
+            mouse_position = event.pos().x()
+        else:  # self.orientation == Qt.Vertical
+            mouse_position = event.pos().y()
+        return mouse_position
+
+    def data_view_ret(self):
+        if self.orientation == Qt.Horizontal:
+            print('column head')
+
+            return self.parent.columnHeader
+        else:
+            print('index head')
+            return self.parent.indexHeader
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent):  # todo extra jump, todo swap while drah, other not updaing
+
+        mouse_position = self.orient(event)
+
+        if self.header_being_resized is not None:
+
+            size = self.initial_header_size + (mouse_position - self.resize_start_position)
+            if size > 10:
+                data = self.data_view_ret()
+                print(f'data: {data.__class__.__name__}, head: {self.header_being_resized}, size: {size}')
+                if self.orientation == Qt.Horizontal:
+
+                    self.setColumnWidth(self.header_being_resized, size)
+                    data.setColumnWidth(self.header_being_resized, size)
+                else:
+
+                    self.setRowHeight(self.header_being_resized, size)
+                    data.setRowHeight(self.header_being_resized, size)
+
+                self.updateGeometry()
+                data.updateGeometry()
+
+        # Set the cursor shape
+        if self.over_header_edge(event) is not None:
+            # print('view: ', self.viewport().__class__.__name__)
+            # print(f'wig: {self.__class__.__name__}, move set curs')
+            # print('on vert,h')
+            if self.orientation == Qt.Horizontal:
+                # print('on h')
+                self.viewport().setCursor(QtGui.QCursor(Qt.SplitHCursor))
+            else:
+                # print('on vert')
+                self.viewport().setCursor(QtGui.QCursor(Qt.SplitVCursor))
+        else:
+
+            self.viewport().setCursor(QtGui.QCursor(Qt.ArrowCursor))
+
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
+        self.header_being_resized = None
+
+    def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent):  # todo font align, font center, add new types
+        pos = event.pos()
+        pos2 = (self.rowAt(pos.y()), self.columnAt(pos.x()))
+
+        print('df =')
+        print(self.data_model.df.head())
+        d2 = self.data_model.df.iloc[pos2]
+        print(f'data at: {pos2}::data:{d2}')
+        # Find which column or row edge the mouse was over and auto size it
+        self.parent.set_popup(d2,True)
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent):
+        # If mouse is on an edge, start the drag resize process
+
+        self.pos_adj(event,self.resize_start)
+        # Handle active drag resizing
+
+    def over_header_edge(self, mouse_position, margin=3):
+        # self.c
+        # Return the index of the column this x position is on the right edge of
+        x = mouse_position.pos().x()
+        y = mouse_position.pos().y()
+        # print(f'Pos: ({x}, {y}), col at marg: {self.columnAt(x + margin)}, row at: {self.rowAt(y + margin)}')
+        if self.columnAt(x - margin) != self.columnAt(x + margin) and self.columnAt(x + margin) != 0:
+            self.orientation = Qt.Horizontal
+            # print('reached horizontal')
+            # We're at the left edge of the first column
+            return self.columnAt(x - margin)
+
+        elif self.rowAt(y - margin) != self.rowAt(y + margin) and self.rowAt(y + margin) != 0:
+            # print('vertical')
+            self.orientation = Qt.Vertical
+            return self.rowAt(y - margin)
+
+        else:
+            return None
 
 
 class HeaderModel(QtCore.QAbstractTableModel):
@@ -492,7 +648,6 @@ class HeaderModel(QtCore.QAbstractTableModel):
                     if isinstance(da, QDate):
                         return QtGui.QIcon('calendar.png')
 
-
     # The headers of this table will show the level names of the MultiIndex
     def headerData(self, section, orientation, role=None):
         if role in [QtCore.Qt.DisplayRole, QtCore.Qt.ToolTipRole]:
@@ -511,30 +666,24 @@ class HeaderModel(QtCore.QAbstractTableModel):
                 return None  # These cells should be hidden anyways
 
 
-class HeaderView(QtWidgets.QTableView):
+class HeaderView(DataTableView):
     """
     Displays the DataFrame index or columns depending on orientation
     """
 
     def __init__(self, parent: DataFrameViewer, df, orientation):
-        super().__init__(parent)
+        super().__init__(df, parent, orientation)
 
+    def _init_0(self, df):
         # Setup
-        self.orientation = orientation
-        self.df = df
-        self.parent = parent
-        self.table = parent.dataView
-        self.data_model = HeaderModel(df, orientation, self.parent)
+
+        self.table = self.parent.dataView
+        self.data_model = HeaderModel(df, self.orientation, self.parent)
         self.setModel(self.data_model)
-        # These are used during column resizing
-        self.header_being_resized = None
-        self.resize_start_position = None
-        self.initial_header_size = None
 
         # Handled by self.eventFilter()
-        self.setMouseTracking(True)
-        self.viewport().setMouseTracking(True)
-        self.viewport().installEventFilter(self)
+
+        # self.viewport().setMouseTracking(True)
 
         # Settings
         self.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
@@ -550,7 +699,7 @@ class HeaderView(QtWidgets.QTableView):
         self.initSize()
 
         # Orientation specific settings
-        if orientation == Qt.Horizontal:
+        if self.orientation == Qt.Horizontal:
             self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)  # Scrollbar is replaced in DataFrameViewer
             self.horizontalHeader().hide()
             self.verticalHeader().setDisabled(True)
@@ -566,13 +715,27 @@ class HeaderView(QtWidgets.QTableView):
         # Set initial size
         self.resize(self.sizeHint())
 
-    def setData(self, df):
-        m = self.data_model
-        m.df = df
-        m.layoutChanged.emit()
+    def data_view_ret(self):
+        return self.parent.dataView
 
-    def test(self):
-        print('test')
+    def over_header_edge(self, mouse_position, margin=3):
+
+        # Return the index of the column this x position is on the right edge of
+        # print('user 2 edge')
+        x = self.orient(mouse_position)
+        # print(x=)
+        if self.orientation == Qt.Horizontal:
+            fun = self.columnAt
+            # Return the index of the row this y position is on the top edge of
+        else:
+            fun = self.rowAt
+        if fun(x - margin) != fun(x + margin) and fun(x + margin) != 0:
+            # We're at the left edge of the first column
+            # print(f'user 2 edge func = {fun.__name__}')
+            return fun(x - margin)
+        else:
+            # print(f'user 2 no fun')
+            return None
 
     # Header
     def on_selectionChanged(self):
@@ -739,106 +902,6 @@ class HeaderView(QtWidgets.QTableView):
                             self.setSpan(match_start, level, span_size, 1)
                             match_start = None
 
-    def over_header_edge(self, mouse_position, margin=3):
-
-        # Return the index of the column this x position is on the right edge of
-        if self.orientation == Qt.Horizontal:
-            x = mouse_position
-            if self.columnAt(x - margin) != self.columnAt(x + margin):
-                if self.columnAt(x + margin) == 0:
-                    # We're at the left edge of the first column
-                    return None
-                else:
-                    return self.columnAt(x - margin)
-            else:
-                return None
-
-        # Return the index of the row this y position is on the top edge of
-        elif self.orientation == Qt.Vertical:
-            y = mouse_position
-            if self.rowAt(y - margin) != self.rowAt(y + margin):
-                if self.rowAt(y + margin) == 0:
-                    # We're at the top edge of the first row
-                    return None
-                else:
-                    return self.rowAt(y - margin)
-            else:
-                return None
-
-    def eventFilter(self, object: QtCore.QObject, event: QtCore.QEvent):
-
-        # If mouse is on an edge, start the drag resize process
-        if event.type() == QtCore.QEvent.MouseButtonPress:
-            if self.orientation == Qt.Horizontal:
-                mouse_position = event.pos().x()
-            elif self.orientation == Qt.Vertical:
-                mouse_position = event.pos().y()
-
-            if self.over_header_edge(mouse_position) is not None:
-                self.header_being_resized = self.over_header_edge(mouse_position)
-                self.resize_start_position = mouse_position
-                if self.orientation == Qt.Horizontal:
-                    self.initial_header_size = self.columnWidth(self.header_being_resized)
-                elif self.orientation == Qt.Vertical:
-                    self.initial_header_size = self.rowHeight(self.header_being_resized)
-                return True
-            else:
-                self.header_being_resized = None
-
-        # End the drag process
-        if event.type() == QtCore.QEvent.MouseButtonRelease:
-            self.header_being_resized = None
-
-        # Auto size the column that was double clicked
-        if event.type() == QtCore.QEvent.MouseButtonDblClick:
-            if self.orientation == Qt.Horizontal:
-                mouse_position = event.pos().x()
-            elif self.orientation == Qt.Vertical:
-                mouse_position = event.pos().y()
-
-            # Find which column or row edge the mouse was over and auto size it
-            if self.over_header_edge(mouse_position) is not None:
-                header_index = self.over_header_edge(mouse_position)
-                if self.orientation == Qt.Horizontal:
-                    self.parent.auto_size_column(header_index)
-                elif self.orientation == Qt.Vertical:
-                    self.parent.auto_size_row(header_index)
-                return True
-
-        # Handle active drag resizing
-        if event.type() == QtCore.QEvent.MouseMove:
-            if self.orientation == Qt.Horizontal:
-                mouse_position = event.pos().x()
-            elif self.orientation == Qt.Vertical:
-                mouse_position = event.pos().y()
-
-            # If this is None, there is no drag resize happening
-            if self.header_being_resized is not None:
-
-                size = self.initial_header_size + (mouse_position - self.resize_start_position)
-                if size > 10:
-                    if self.orientation == Qt.Horizontal:
-                        self.setColumnWidth(self.header_being_resized, size)
-                        self.parent.dataView.setColumnWidth(self.header_being_resized, size)
-                    if self.orientation == Qt.Vertical:
-                        self.setRowHeight(self.header_being_resized, size)
-                        self.parent.dataView.setRowHeight(self.header_being_resized, size)
-
-                    self.updateGeometry()
-                    self.parent.dataView.updateGeometry()
-                return True
-
-            # Set the cursor shape
-            if self.over_header_edge(mouse_position) is not None:
-                if self.orientation == Qt.Horizontal:
-                    self.viewport().setCursor(QtGui.QCursor(Qt.SplitHCursor))
-                elif self.orientation == Qt.Vertical:
-                    self.viewport().setCursor(QtGui.QCursor(Qt.SplitVCursor))
-            else:
-                self.viewport().setCursor(QtGui.QCursor(Qt.ArrowCursor))
-
-        return False
-
     # Return the size of the header needed to match the corresponding DataTableView
     def sizeHint(self):
 
@@ -868,6 +931,11 @@ class HeaderView(QtWidgets.QTableView):
         else:
             return QSize(self.sizeHint().width(), 0)
 
+    def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent):
+
+        # Find which column or row edge the mouse was over and auto size it
+        if self.pos_adj(event, self.auto_rc):
+            return True
 
 # This is a fixed size widget with a size that tracks some other widget
 class TrackingSpacer(QtWidgets.QFrame):

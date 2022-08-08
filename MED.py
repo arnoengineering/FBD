@@ -1,6 +1,11 @@
 from PyQt5.QtGui import QFont, QTextCharFormat, QPalette, QPainter, QColor, QIcon  # QPainter, QPen,QBrush,
-from PyQt5.QtCore import Qt, QDate, QSettings, QRect  # QTimer, QSize,
+from PyQt5.QtCore import Qt, QDate, QSettings, QRect # , QByteArray  # QTimer, QSize,
 # from logging import exception
+# color pallette-color
+# user medical, user doc gen
+# folder-open-document-text
+# disk
+# document-excel table
 from data_view import DataFrameViewer
 from PyQt5.QtWidgets import *
 
@@ -12,21 +17,30 @@ from functools import partial
 from medgoogle import SchedualOptomizer
 from piv_edit import pivotDialog
 from saload import saveLoad
+from docWiz import docPopup
 
 from cal_exp import calendarEdit
+from super_bc import SuperCombo, SuperButton
+# from email_doc import login
 
-
-# todo mail
-# todo exe
-# todo y
-# todo typehint
-# todo sdave settigs
-# atribute
-# bold italics, calendar--pluss, better piviot
-# doc user
-# # mail send
-# call off conditional
-# groupby months
+'''exe
+mail
+full settings
+load
+multiple groupby
+add doc new info
+add compair
+settings:  # todo unsaved changes, todo overwrite, todo menu, user show
+cal select output
+capital
+font
+fil
+color
+size
+widits
+pivot
+info button
+'''
 
 
 def sort_day(ls):
@@ -46,8 +60,10 @@ class Window(QMainWindow):
         if self.first_show:
             self.first_show = False
             # self._start_up_promt()
+            print(f'\n{string_break}\n|| Init Doc Window ||\n{string_break}\n')
 
             self._set_list()
+            self._set_tooltip()
             self._set_empty()
             self.set_date_format()
 
@@ -76,13 +92,38 @@ class Window(QMainWindow):
                        'Weekday Format': ['let', '3let', 'Full'],
                        'Editing': ['Active Schedule_calendar-task', 'Preferences_calendar_pencil']}
 
-        self.wn = 'Show/Hide Weeknumbers_eye-half'
-        self.button_list = ['solve_calculator--arrow', self.wn,
+        self.wn = 'Show/Hide Weeknumbers'
+        self.button_list = ['solve_calculator--arrow', self.wn+'_eye-half',
                             'Today_calendar-day', 'Save_disk-black',
                             'Load_document-excel-table',
-                            'Add_calendar--plus', 'Cal Exp']  # todo add icon
-
+                            'Add_calendar--plus', 'Cal Exp_calendar--arrow',
+                            'Email_mail-send']
         self.date_n = ['StartDate', 'EndDate']  # calselect days
+
+    def _set_tooltip(self):
+        self.tool_tip = {'solve': 'Uses Linear optimization to solve current schedule using active preferences\n'
+                                  'currently working to add compair',
+                         self.wn: 'Show/Hide Weeknumbers on calendar',
+                         'Today': 'focus on today in calendar',
+                         'Save': 'save items to csv, jason, excel',
+                         'Load': 'Load items from csv, jason, excel:  WIP',
+                         'Add': 'all current dates are added with doc and pref to date',
+                         'Cal Exp': 'export all to .ics format\ncal can be imported to excel',
+                         'Email': 'email selected docs with selected cals: WIP',
+                         'Date Start': 'if mode = range, from date start to end',
+                         'Mode': 'Single: add multiple dates based on selections\n'
+                                 'Range: add all dates in selected range',
+                         'Start Week Format': 'start week on sunday or monday',
+                         'Setting Mode': 'current shift to edit',
+                         'Want Shift': 'if current pref is posive or negative',
+                         'Pref': 'how much is opinion worth (1-4): or 5 = garentied',
+                         'Date Format': 'how dates showup in all locations',
+                         'Weekday Format': 'how days of week are formated',
+                         'Editing': 'editing the curret scedule with direct effects or editing the prefernces to solve',
+                         'bold': 'current widget text: Bold',
+                         'underline': 'current widget text: Underline',
+                         'italic': 'current widget text: Italic',
+                         }
 
     def _set_empty(self):
         self.shifts = ['Call', 'Walkin', 'Off', 'Away']
@@ -104,8 +145,6 @@ class Window(QMainWindow):
         # assume overrite for now
         # at end do save default or change
         # load popup
-        # todo add compair
-        # todo chainge default userload
         # edit schedule vs prefewrnces
         # edit date list
 
@@ -113,7 +152,6 @@ class Window(QMainWindow):
 
     def _setup_load(self):
         def l2(x):
-            # print('x =', type(x))
             if isinstance(x, pd.DatetimeTZDtype):
                 return QDate(x.year, x.month, x.day)
             elif isinstance(x, int):
@@ -123,17 +161,16 @@ class Window(QMainWindow):
 
         if self.default_file:
             self.save_l.on_load_fin(self.default_file, 1)
-            print('iiiio')
+            print('Loaded Doc info')
         self.save_l.on_load_fin('docDays.xlsx', 0)
         self.doc_preferences['Days'] = self.doc_preferences['Days'].apply(l2)
 
         try:
-            self.save_l.on_load_fin('DocSchedule.xlsx', 2)  # todo try
+            self.save_l.on_load_fin('DocSchedule.xlsx', 2)
             self.current_schedule['Days'] = self.current_schedule['Days'].apply(l2)
-            print('fill na')
-            print(self.current_schedule.head())
-            self.current_schedule.fillna("", inplace=True)  # todo days
-            print('fill')
+
+            self.current_schedule.fillna("", inplace=True)
+            print('current schedule')
             print(self.current_schedule.head())
         except ValueError:
             print('error loading doc')
@@ -222,7 +259,6 @@ class Window(QMainWindow):
 
         for wig_name in self.date_n:
             lab = QLabel(wig_name)
-            print('i', wig_name)
             da = QDateEdit()
             da.setDate(QDate.currentDate())
             da.setCalendarPopup(True)
@@ -236,11 +272,8 @@ class Window(QMainWindow):
             self.cal_tool_bar.addWidget(wig)
 
     def run_cmd(self, i, ex=None):
-        print('cmd', i)
-        if i == 'doc away':
-            print('date, doc away')
-            # set doc away
-        elif i == 'Mode':
+        print(f'Running Command: {i}  ||\n')
+        if i == 'Mode':
             self.cal_wig.swap_select_mode(self.combo[i].currentText())
             self.day_stat2.reset_table()
         elif i == 'solve':
@@ -260,7 +293,7 @@ class Window(QMainWindow):
 
             self._save_user_settings()
         elif i == 'Add':
-            self.add_doc()
+            self.add_doctor_pref()
 
         elif i == 'Settings':
             self.run_set()
@@ -278,28 +311,46 @@ class Window(QMainWindow):
             self._run_doc_solve()
 
         elif i == 'Cal Exp':
-            self.c_exp()
+            self._c_exp()
+        elif i == 'Email':
+            self._run_email()
 
-    def c_exp(self):
+    def _c_exp(self):
         cal = calendarEdit(self,self.current_schedule)
-        file_ls = cal.doc_save() # todo user email list
+        self.file_ls = cal.doc_save() # todo user email list
+
+    def _run_email(self):
+        print(f'\n{string_break}\n Running email')
+        # QIcon('icons/mail-open-table.png')
+        self.msg = QMessageBox(1,'Email Info',
+                               'Sending Email is still a WIP:\n'
+                               'Please send documents manually')
+        self.msg.exec()
+        # self.log = login(self)
+        # self.log.show()
 
     def run_set(self):
         pass
 
-    def add_doc(self):
+    def add_doctor_pref(self):
         doc = self.combo['Active Doc'].currentText()
         pre = self.combo['Pref'].currentText()
+
         want = self.combo['Want Shift'].currentText()
         shift = self.combo['Setting Mode'].currentText()
+
         edit_type = self.combo['Editing'].currentText()
+
         df_p = {'Days': [], 'Doc': [doc], 'Shift': [shift]}
+
         if want == 'No':
             pre *= -1
+
         if edit_type == 'Preferences':
             data = self.doc_prefernces
             df_p['Pref'] = [pre]
             tx = 'Preferences'
+
         else:
             data = self.current_schedule
             tx = 'sched'
@@ -307,13 +358,17 @@ class Window(QMainWindow):
         for ii in self.cal_wig.full_date_list:
             print(f'{tx}: val: {ii},doc:{doc}, shift:{shift}')
             df_p['Days'] = [ii]
+
             if edit_type == 'Active Schedule':
                 data.loc[(data['Shift'] == shift) & (data['Days'] == ii), 'Doc'] = doc
+
             elif ii in data.loc[data['Doc'] == doc, ['Days']]:
                 print('overwrite')
                 data.loc[(data['Doc'] == doc) & (data['Days'] == ii)] = pd.DataFrame(df_p)
+
             else:
                 data = pd.concat((data, pd.DataFrame(df_p)))
+
     def _dia_ax(self):
         self.val = int(self.wi.text())
         if not self.dia.wig_o.isChecked():
@@ -324,10 +379,10 @@ class Window(QMainWindow):
         # self.schedul
         self.solver.set_constraints(self.doc_preferences, QDate.currentDate())
         self.solver.solve_shift_scheduling()
-        print('yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy')
-        self.current_schedule = self.solver.sch_data  # todo overrite ask
+        print('Finished Solving')
+        self.current_schedule = self.solver.sch_data
         self.save_l.sa = True
-        self.save_l.on_save_fin('DocSchedule.xlsx', 2)  # todo if user asks
+        self.save_l.on_save_fin('DocSchedule.xlsx', 2)
         # self.save_l.on_save_fin('docDays.xlsx', 0)
 
     def doc_on_day(self, date, cfd=None):
@@ -360,14 +415,12 @@ class Window(QMainWindow):
         self.font_edit.setEnabled(wig == 'Cal')
 
     def set_active_font(self, font=None, ty='Font'):
-
-        print('running activefont')
-
         if self.font_edit.isEnabled():
             tty = self.font_edit.currentText()
 
         else:
             tty = self.active_wig
+
         if ty == 'Capital':
             if font < 5:  # enum
                 self.font_ty[tty][ty] = self.cap_op[font]
@@ -381,7 +434,7 @@ class Window(QMainWindow):
             self.font_ty[tty][ty] = font
 
     def _update_set(self):
-        print('loading_all')
+        print(f'\n{string_break}\n Loading Settings')
         self.setting_keys_combo = {'Date Format': 'dd-MMM-yyyy',  # y-m-d,y-d-m,d-m-y,m-d-y
                                    'Weekday Format': 'let',  # long,sort,,let
                                    'Start Week Format': 'Sun',
@@ -403,7 +456,7 @@ class Window(QMainWindow):
                                                 'Capital': self.cap_op[0], 'Color': QColor(Qt.black)}
                                 }
 
-        for shift in self.shifts:  # todo add fill, add alignmen
+        for shift in self.shifts:
             if shift not in self.font_ty_default:
                 self.font_ty_default[shift] = {'Font': QFont("Times"), 'Size': self.font_sizes[0],
                                                'Capital': self.cap_op[0], 'Color': QColor(Qt.black),
@@ -414,7 +467,7 @@ class Window(QMainWindow):
             val = self.settings.value(ke, v)
             self.combo[ke].setCurrentText(val)
             # ke_new = ke.lower().replace(' ', '_')  #
-            print(f'key, val: {ke}, {val}')
+            print(f'Loaded {ke} = {val}')
 
         self.settings.endGroup()
 
@@ -436,10 +489,13 @@ class Window(QMainWindow):
                 self.active_shifts.append(i)
         self.settings.endGroup()
         k = self.settings.allKeys()
-        print('res')
+
         for i, j in [(self.restoreGeometry, "Geometry"), (self.restoreState, "windowState")]:
             if j in k:
-                i(self.settings.value(j))
+                va = self.settings.value(j)
+                i(va)
+
+        print(f'Finished Loading Settings\n{string_break}\n')
 
     def set_date_format(self):
         conect = ['.', '/', ',', '-', ' ']
@@ -462,7 +518,6 @@ class Window(QMainWindow):
                                 j.extend(f'{y}{co}{si}' for si in st)
                             else:
                                 j.extend(f'{si}{co}{y}' for si in st)
-        print(j)
 
         self.cmd_ls['Date Format'] = j
 
@@ -471,6 +526,7 @@ class Window(QMainWindow):
         self.user_settings()
 
     def user_settings(self, last_ses=True):
+        print(f'\n{string_break}\nSaving Settings')
         self.settings.setValue("Geometry", self.saveGeometry())
         self.settings.setValue("windowState", self.saveState())
 
@@ -480,7 +536,7 @@ class Window(QMainWindow):
             for ke in self.setting_keys_combo.keys():
                 val = self.combo[ke].currentText()
                 self.settings.setValue(ke, val)
-                print(f'key, val: {ke}, {val}')
+                print(f'Saving{ke} = {val}')
             self.settings.endGroup()
 
             self.settings.beginGroup('font')
@@ -493,17 +549,18 @@ class Window(QMainWindow):
 
             self.settings.beginGroup('ActiveShift')
             for i in self.shifts:
-                j = self.settings.setValue(i, i in self.active_shifts)
+                self.settings.setValue(i, i in self.active_shifts)
             self.settings.endGroup()
 
             setting = QSettings('Claassens Software', 'Calling LLB_2022_open')
             setting.setValue('Load Last Session', self.load_d)
             setting.setValue('Show on Startup', self.on_start)
+            print(f'Finished Saving Settings\n{string_break}\n')
 
     def closeEvent(self, event):
-
+        print(f'\n{string_break}\nClosing Doc\n{string_break}\n')
         self.user_settings(self.load_d)
-        super().closeEvent(event)  # todo unsaved changes, todo overwrite, todo menu, user show
+        super().closeEvent(event)
 
         for i in self.ti_info.values():
             i.close_dia()
@@ -629,11 +686,11 @@ class Calendar(QCalendarWidget):
 
     def _add_menu(self, pos):
         self.menu_item = {}
-        print('wig')
+        print('Context Menu opened')
         self.context_menu = QMenu("Show Events", self)
-        print('qmen')
+
         for ite in self.par.shifts:
-            print('ite', ite)
+
             action = QAction(ite)
             action.setCheckable(True)
             if ite in self.par.active_shifts:
@@ -641,7 +698,6 @@ class Calendar(QCalendarWidget):
             action.triggered.connect(partial(self.add_text, ite))
             self.menu_item[ite] = action
             self.context_menu.addAction(action)
-            print('loaded action:', action.text())
 
         self.context_menu.exec(self.mapToGlobal(pos))
 
@@ -680,7 +736,7 @@ class DocStatus(DataFrameViewer):  # self.doc_dataframe_items
 
     def close_dia(self):
         if self.dia_act:
-            # todo check position, last columns, todo load doc
+
             self.dialog.close()
 
     def _init_dock(self):
@@ -692,10 +748,6 @@ class DocStatus(DataFrameViewer):  # self.doc_dataframe_items
         print('update df')
         self.setData()
         print(self.df.head())
-        print('hello')
-        print(self.dataView.print())
-        # self.dataView.model().beginResetModel()
-        # self.update()
         self.dataView.model().layoutChanged.emit()
 
     def reset_table_main(self, dd, r, c):
@@ -737,18 +789,21 @@ class DocStatus(DataFrameViewer):  # self.doc_dataframe_items
                     col = Qt.cyan
                 self.item(r, i).setBackground(col)
 
-    def set_popup(self, x, y):
+    def set_popup(self, ind, data=False):
 
-        ind = (x, y)
-        if ind[0] == 0:
-            self.dia = docPopup(self, self.currentItem().text())
+        # ind = (x, y)
+        if data:
+            print(f'seting doc of: {ind}')
+            xy = ind
+            self.dia = docPopup(self, xy)
             self.dia.show()
-        print('popup')
-        pass
-
-    # def read_date(self):
-    #     for d in doc[doc]['dates']:
-    #         qdate from str
+        else:
+            print('index at({},{})'.format(*ind))
+            xy = self.df.iloc[0, ind[1]]
+            if ind[0] == 0:
+                self.dia = docPopup(self, xy)
+                self.dia.show()
+        print('popup')  # todo add doc op
 
 
 class DocClinic(DocStatus):  # self.doc_dataframe_items
@@ -783,186 +838,9 @@ class DayStatus(DocStatus):
         # self.dataView.model()._data = self.df
         pass
 
-
-class docPopup(QDialog):
-    def __init__(self, par, res=None):
-        super().__init__()
-        self.res = res
-        self.par = par
-        self.doc_op = ['Baby', 'Sur', 'Anestetics', 'Locum']
-        self.doc_data = {}
-        self.setModal(False)
-        self._init_layout()
-
-        # self.show()
-
-    def _init_layout(self):
-        print('show wigit')
-        self.dia_lay = QVBoxLayout()
-        self.horizontalLayout = QHBoxLayout()
-        self.verticalLayout_2 = QVBoxLayout()
-        self.verticalLayout = QVBoxLayout()
-
-        self.name_lay = QLabel('Name')
-        self.name_edit = QLineEdit()
-        if self.res:
-            self.name_edit.setText(self.res)
-
-        self.verticalLayout_2.addWidget(self.name_lay)
-        self.verticalLayout_2.addWidget(self.name_edit)
-        # self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
-        # self.verticalLayout_2.addItem(self.verticalSpacer)
-
-        self.doc_op_check = {}
-        for op in self.doc_op:
-            op_box = QCheckBox(op)
-            self.doc_op_check[op] = op_box
-            self.verticalLayout.addWidget(op_box)
-
-        self.buttonBox = QDialogButtonBox()
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel | QDialogButtonBox.Save)
-        self.buttonBox.setCenterButtons(False)
-        self.buttonBox.accepted.connect(self.acc)
-        self.buttonBox.rejected.connect(self.rej)
-
-        self.dia_lay.addWidget(self.buttonBox)
-        self.horizontalLayout.addLayout(self.verticalLayout_2)
-        self.horizontalLayout.addLayout(self.verticalLayout)
-
-        self.dia_lay.addLayout(self.horizontalLayout)
-        self.setLayout(self.dia_lay)
-
-    def acc(self):
-        print('accet')
-        if self.res:
-            del self.doc_data[self.res]
-
-        kk = []
-        for i, k in self.doc_op_check.items():
-            if k:
-                kk.append(i)
-        self.doc_data[self.name_edit.text()] = kk
-        print('doc d', self.doc_data)
-
-        self.accept()
-
-    def rej(self):
-        print('reject')
-        self.reject()
-
-
-class CalendarDayDelegate(QItemDelegate):
-    def __init__(self, parent=None, projects=None, par=None):
-        super(CalendarDayDelegate, self).__init__(parent=parent)
-
-        self.projects = projects
-        # self.items_ls = {'Call': '', }
-        self.par = par
-        self.labs = []
-        self.space = 0.7
-        self.space_ver = 0.15
-        self.op = [Qt.AlignCenter | Qt.AlignVCenter,
-                   Qt.AlignRight | Qt.AlignBottom,
-                   Qt.AlignLeft | Qt.AlignBottom,
-                   Qt.AlignRight | Qt.AlignTop]
-        self.last_month = True  # todo reset and if overlap
-
-    def paint(self, painter: QPainter, option, index):
-
-        painter._date_flag = index.row() > 0
-        super(CalendarDayDelegate, self).paint(painter, option, index)
-
-        if painter._date_flag:
-
-            date_num_full = index.data()
-            index_loc = (index.row(), index.column())
-            year = self.par.yearShown()
-            month = self.par.monthShown()
-            if date_num_full > 7 and index_loc[0] == 1:
-                if month == 1:
-                    year -= 1
-                    month = 12
-                else:
-                    month -= 1
-            elif date_num_full < 15 and index_loc[0] > 4:
-                if month == 12:
-                    year += 1
-                    month = 1
-                else:
-                    month += 1
-
-            date = QDate(year, month, date_num_full)
-            print('labs= ', self.labs)
-            active_shifts = self.par.par.active_shifts
-            painter.save()
-            rect = option.rect
-            x, y, w, h = rect.getRect()
-            for n, i in enumerate(active_shifts):
-                doc = self.par.par.doc_on_day(date, [i])[0]
-
-                # back_color = Qt.red
-                siz = int(w * self.space)
-                size_v = int(w * self.space_ver)
-                if i == 'Call':
-                    size_v += 10
-                x0 = x + w - siz - 2
-                if doc != "":
-                    rect2 = QRect(x0, y + 2, siz, size_v)
-                    d = self.par.par.font_ty
-
-                    font = d[i]['Font']
-                    font.setPixelSize(d[i]['Size'])
-                    # QFont()
-                    font.setCapitalization(self.par.par.cap_op.index(d[i]['Capital']))
-                    painter.setFont(font)
-                    align = self.op[n]
-                    # te = doc[n]
-                    doc_col = d[i]['Color']
-                    back_color = d[i]['Fill']
-                    y += size_v + 2
-
-                    painter.setBrush(back_color)
-                    painter.drawRect(rect2)
-                    painter.setPen(doc_col)
-                    painter.drawText(rect2, align, doc)  # , option=)
-
-            painter.restore()
-
-    def drawDisplay(self, painter, option, rect, text):
-        if painter._date_flag:
-            option.displayAlignment = Qt.AlignTop | Qt.AlignLeft
-        super(CalendarDayDelegate, self).drawDisplay(painter, option, rect, text)
-
-
-class ColorButton(QPushButton):
-    def __init__(self, col='', par=None, ty='Color'):
-        if ty == 'color':
-            tx = 'icons/edit-color.png'
-        else:
-            tx = 'icons/paint-can-color.png'
-        super().__init__(QIcon(tx), col)
-        self.ty = ty
-        self.par = par
-        self.clicked.connect(lambda _: self.par.set_active_font(ty=self.ty))
-
-    def paintEvent(self, event):
-        super().paintEvent(event)
-        w, h = self.width(), self.height()
-        r_w = w // 3
-        r_h = h // 4
-
-        rect = QRect((w - r_w) // 2, h - r_h - 2, r_w, r_h)
-        # rect.moveTo(self.rect().bottomRight() - rect.bottomRight())
-
-        painter = QPainter(self)
-        painter.setBrush(self.par.active_col)
-        painter.drawRect(rect)
-
-
 class dataPopup(QDialog):
     # noinspection PyArgumentList
-    def __init__(self, par: Window, res=None):
+    def __init__(self, par, res=None):
         super().__init__()
         self.res = res
         self.par = par
@@ -1033,108 +911,111 @@ class dataPopup(QDialog):
         self.reject()
 
 
-class SuperCombo(QComboBox):
-    def __init__(self, name, par, orient_v=True, vals=None, show_lab=True, run=True):
-        super().__init__()
+class CalendarDayDelegate(QItemDelegate):
+    def __init__(self, parent=None, projects=None, par=None):
+        super(CalendarDayDelegate, self).__init__(parent=parent)
 
+        self.projects = projects
+        # self.items_ls = {'Call': '', }
         self.par = par
-        self.orient_v = orient_v
-        self.show_lab = show_lab
-        self.name = name
-        self.item_ls = []
-        self.wig = QWidget()
+        self.labs = []
+        self.space = 0.7
+        self.space_ver = 0.15
+        self.op = [Qt.AlignCenter | Qt.AlignVCenter,
+                   Qt.AlignRight | Qt.AlignBottom,
+                   Qt.AlignLeft | Qt.AlignBottom,
+                   Qt.AlignRight | Qt.AlignTop]
+        self.last_month = True
 
-        self.lab = QLabel(self.name)
+    def paint(self, painter: QPainter, option, index):
 
-        self._layout_set()
+        painter._date_flag = index.row() > 0
+        super(CalendarDayDelegate, self).paint(painter, option, index)
 
-        if vals is not None:
-            for v in vals:
-                if '_' in v:
-                    v, ic = v.split('_', 1)
-                    self.addItem(QIcon(f'icons/{ic}.png'), v)
-                    self.item_ls.append(v)
+        if painter._date_flag:
+
+            date_num_full = index.data()
+            index_loc = (index.row(), index.column())
+            year = self.par.yearShown()
+            month = self.par.monthShown()
+            if date_num_full > 7 and index_loc[0] == 1:
+                if month == 1:
+                    year -= 1
+                    month = 12
                 else:
-                    self.addItem(v)
-                    self.item_ls.append(v)
+                    month -= 1
+            elif date_num_full < 15 and index_loc[0] > 4:
+                if month == 12:
+                    year += 1
+                    month = 1
+                else:
+                    month += 1
 
-        if run:
-            self.currentTextChanged.connect(lambda x: self.par.run_cmd(self.name, x))  # todo if docs or if no text
+            date = QDate(year, month, date_num_full)
+            active_shifts = self.par.par.active_shifts
+            painter.save()
+            rect = option.rect
+            x, y, w, h = rect.getRect()
+            for n, i in enumerate(active_shifts):
+                doc = self.par.par.doc_on_day(date, [i])[0]
 
-    # noinspection PyArgumentList
-    def _layout_set(self):
-        if self.orient_v:
-            self.layout = QVBoxLayout()
+                # back_color = Qt.red
+                siz = int(w * self.space)
+                size_v = int(w * self.space_ver)
+                if i == 'Call':
+                    size_v += 10
+                x0 = x + w - siz - 2
+                if doc != "":
+                    rect2 = QRect(x0, y + 2, siz, size_v)
+                    d = self.par.par.font_ty
+
+                    font = d[i]['Font']
+                    font.setPixelSize(d[i]['Size'])
+                    # QFont()
+                    font.setCapitalization(self.par.par.cap_op.index(d[i]['Capital']))
+                    painter.setFont(font)
+                    align = self.op[n]
+                    # te = doc[n]
+                    doc_col = d[i]['Color']
+                    back_color = d[i]['Fill']
+                    y += size_v + 2
+
+                    painter.setBrush(back_color)
+                    painter.drawRect(rect2)
+                    painter.setPen(doc_col)
+                    painter.drawText(rect2, align, doc)  # , option=)
+
+            painter.restore()
+
+    def drawDisplay(self, painter, option, rect, text):
+        if painter._date_flag:
+            option.displayAlignment = Qt.AlignTop | Qt.AlignLeft
+        super(CalendarDayDelegate, self).drawDisplay(painter, option, rect, text)
+
+
+class ColorButton(QPushButton):
+    def __init__(self, col='', par=None, ty='Color'):
+        if ty == 'color':
+            tx = 'icons/edit-color.png'
         else:
-            self.layout = QHBoxLayout()
-        self.layout.addWidget(self)
-        self.layout.addWidget(self.lab)
-        self.wig.setLayout(self.layout)
-
-    def reset_show(self, show_lab=False, flip=False):
-        if flip:
-            self.orient_v = not self.orient_v
-            self._layout_set()
-        if show_lab:
-            self.show_lab = not self.show_lab
-            if self.show_lab:
-                self.layout.addWidget(self.lab)
-            else:
-                self.layout.removeWidget(self.lab)
-
-
-# color pallette-color
-# user medical, user doc gen
-# folder-open-document-text
-# disk
-# document-excel table
-class SuperButton(QWidget):
-    def __init__(self, name, par, orient_v=True, vals=None, show_lab=True):
-        super().__init__()
-
+            tx = 'icons/paint-can-color.png'
+        super().__init__(QIcon(tx), col)
+        self.ty = ty
         self.par = par
-        self.orient_v = orient_v
-        self.show_lab = show_lab
-        self.name = name
-        self.but = {}
-        self.lab = QLabel(self.name)
+        self.clicked.connect(lambda _: self.par.set_active_font(ty=self.ty))
 
-        if vals:
-            for i in vals:
-                if '_' in i:
-                    i, ic = i.split('_', 1)
-                    j = QPushButton(QIcon(f'icons/{ic}.png'), "")
-                else:
-                    j = QPushButton(i)
-                j.clicked.connect(partial(self.par.run_cmd, i))
-                self.but[i] = j
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        w, h = self.width(), self.height()
+        r_w = w // 3
+        r_h = h // 4
 
-        self._layout_set()
+        rect = QRect((w - r_w) // 2, h - r_h - 2, r_w, r_h)
+        # rect.moveTo(self.rect().bottomRight() - rect.bottomRight())
 
-    def _layout_set(self):
-        self.layout = QGridLayout()
-        n = 0
-        if self.orient_v:
-
-            for i in self.but.keys():
-                self.layout.addWidget(self.but[i], 0, n)
-                n += 1
-            self.layout.addWidget(self.lab, 1, 0, 1, n)
-        else:
-            for i in self.but.keys():
-                self.layout.addWidget(self.but[i], n, 0)
-                n += 1
-            self.layout.addWidget(self.lab, 0, 1, n, 1)
-        self.setLayout(self.layout)
-
-    def reset_show(self, show_lab=False, flip=False):
-        if flip:
-            self.orient_v = not self.orient_v
-            self._layout_set()
-        if show_lab:
-            self.show_lab = not self.show_lab
-            if not self.show_lab:
-                self.layout.removeWidget(self.lab)
+        painter = QPainter(self)
+        painter.setBrush(self.par.active_col)
+        painter.drawRect(rect)
 
 
 class StartupDialog(QDialog):
@@ -1199,10 +1080,10 @@ def _start_up_promt():
 
 def load_win(load_d, again):
     if load_d:
-        print('show j')
+        print('Loading Last Session')
         j = 'Calling LLB_2022'
     else:
-        print('show jnot')
+        print('Loading user Saved')
         j = 'User Saved'
     win.settings = QSettings('Claassens Software', j)
     win.on_start = again
@@ -1211,7 +1092,14 @@ def load_win(load_d, again):
     st.close()
 
 
+string_break = '_'*10
 if __name__ == '__main__':
+    strs = ' ___     ____     ____\n' \
+           '|   \\   |    |   |    |\n' \
+           '|    )  |    |   |\n' \
+           '|___/   |____|   |____|\n\n'
+    print(strs)
+    print(string_break)
     app = QApplication(sys.argv)
     win = Window()
     st = StartupDialog()

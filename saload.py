@@ -34,7 +34,7 @@ def load_json(file):
 
 
 def load_ex(file):
-    print('oad ex')
+    print('Load ex')
     xl = pd.ExcelFile(file)
     data = {}
     docs = xl.sheet_names
@@ -162,6 +162,7 @@ class saveLoad(QFileDialog):
         data = fi(file)
         #     load = pref
         lo = self.func_load[ty]
+        #
         lo(data)
 
     def ff(self):
@@ -207,8 +208,6 @@ class saveLoad(QFileDialog):
         super().setNameFilter(self.load_f_type(filters))
 
     def load_doc_preferences(self, data):
-        print(data)
-        # doc_l =[x['Name'] for x in self.par.doc_data]
         self.par.doc_preferences = data['Days']
 
     def load_secdual(self, data):
@@ -220,10 +219,7 @@ class saveLoad(QFileDialog):
         pass
 
     def load_doc_info(self, data):  # note for doc excel
-        print(data)
-        # doc_l =[x['Name'] for x in self.par.doc_data]
         self.par.doc_data = data['Sheet1']
-
 
     def save_doc_preferences(self):
         print('save_doc pref')
@@ -250,9 +246,3 @@ class saveLoad(QFileDialog):
         self.setDefaultSuffix('csv')
         self.setAcceptMode(QFileDialog.AcceptSave)
         self.setNameFilter(['json', 'csv', 'excel'])
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    win = saveLoad()
-    win.show()
-    sys.exit(app.exec_())
