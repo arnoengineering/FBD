@@ -28,7 +28,7 @@ import google_auth_oauthlib.flow
 
 state = flask.session['state']
 flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-    'client_secret.json',
+    'SECRET/client_secret.json',
     scopes=['https://www.googleapis.com/auth/drive.metadata.readonly'],
     state=state)
 flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
