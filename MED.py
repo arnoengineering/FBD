@@ -10,7 +10,10 @@ import sys
 from functools import partial
 from medgoogle import SchedualOptomizer
 from saload import saveLoad
-
+"""icon
+pivot
+other
+"""
 
 def sort_day(ls):
     ls.sort(key=lambda x: x.toString(Qt.TextDate))
