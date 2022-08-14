@@ -39,7 +39,7 @@ class HandlePlots(pg.PlotWidget):
         print('data:' , data)
         for n, i in enumerate(data):
             print('pls,', n)
-            self.plot_ls[n].setData(i[1],i[0]*10**n)
+            self.plot_ls[n].set_data(i[1], i[0] * 10 ** n)
 
     def reset(self):
         # todo reset names, axis

@@ -24,9 +24,9 @@ class gearPlot(pg.PlotWidget):
         self.en = self.plot(pen='g', width=3, name='Energy')
 
     def set_v(self, v, c,e, p):
-        self.pl.setData(v,c)
-        self.pow.setData(v, p)
-        self.en.setData(v, e)
+        self.pl.set_data(v, c)
+        self.pow.set_data(v, p)
+        self.en.set_data(v, e)
 
 class Window(QMainWindow):
     # noinspection PyArgumentList
