@@ -44,6 +44,9 @@ info button
 tables
 settings
 widgits close open
+# todo user email list
+ # todo add doc op# todo to par main, read main# todo do we Have?
+  # todo run next# todo style
 '''
 
 
@@ -99,7 +102,6 @@ class Window(QMainWindow):
                        'Weekday Format': ['let', '3let', 'Full'],
                        'Editing': ['Active Schedule_calendar-task', 'Preferences_calendar_pencil']}
 
-        # init all pushbutton, name_icon todo add to menu
         self.button_list = ['solve_calculator--arrow', self.wn + '_eye-half',
                             'Today_calendar-day', 'Save_disk-black',
                             'Apply',
@@ -143,11 +145,19 @@ class Window(QMainWindow):
                          'Bottom': 'align text vertically bottom'
                          }
 
+    def _set_menu_bar(self):
+        self.men = QMenuBar()
+        men_op = {'File': ['Save', 'load', 'Cal Exp', 'Solve'],
+                  'Edit': ['Editing', 'Setting mode_s', 'Vert', 'Horizon'],
+                  'View': [self.wn, 'Shifts', 'Windows', 'Today']}
+        # self.men.addMenu()
+        pass
+
     def _set_empty(self):
         """sets empty lists"""
 
         self.shifts = ['Call', 'Walkin', 'Off', 'Away']
-        self.schedules = ['Current', 'Edited']  # todo if user adds overwrite?
+        self.schedules = ['Current', 'Edited']
 
         self.set_mode = None
         self.active_col = {'Color': Qt.black, 'Fill': Qt.black}
@@ -163,7 +173,7 @@ class Window(QMainWindow):
         self.combo = {}
         self.sch_ls = {}
         self.active_shifts = []
-        self.align_op = {'H':{'Left':Qt.AlignLeft, 'Center':Qt.AlignCenter, 'Right':Qt.AlignRight},
+        self.align_op = {'H': {'Left': Qt.AlignLeft, 'Center': Qt.AlignCenter, 'Right': Qt.AlignRight},
                          'V': {'Top': Qt.AlignTop, 'CenterV': Qt.AlignVCenter, 'Bottom': Qt.AlignBottom}}
 
         self.default_files = {'Doc Info': 'docInfoN.xlsx',
@@ -180,7 +190,7 @@ class Window(QMainWindow):
         # load popup
         # edit schedule vs prefewrnces
         # edit date list
-        self.avalible_sch.append('Edited')  # todo as dict
+        self.avalible_sch.append('Edited')
 
         pass
 
@@ -231,8 +241,8 @@ class Window(QMainWindow):
         va = [f'{i}_edit-{i.lower()}' for i in self.font_style]
         self.font_head = SuperButton('Style Options', self, vals=va)
 
-        align_h = ['Left_edit-alignment','Center_edit-alignment-center', 'Right_edit-alignment-right']
-        align_v = ['Top_edit-vertical-alignment-top','CenterV_edit-vertical-alignment-middle',
+        align_h = ['Left_edit-alignment', 'Center_edit-alignment-center', 'Right_edit-alignment-right']
+        align_v = ['Top_edit-vertical-alignment-top', 'CenterV_edit-vertical-alignment-middle',
                    'Bottom_edit-vertical-alignment']
 
         self.font_align = {'H': SuperButton('Horizontal Align', self, vals=align_h),
@@ -250,6 +260,7 @@ class Window(QMainWindow):
         self.tool_bar.addWidget(self.but_edit['color'])
         self.tool_bar.addWidget(self.but_edit['color_fill'])
 
+        # noinspection PyUnresolvedReferences
         self.font_wig['Capital'].currentIndexChanged.connect(lambda x: self.set_active_font(x, 'Capital'))
         self.font_wig['Size'].currentTextChanged.connect(lambda x: self.set_active_font(x, 'Size'))
         self.font_wig['Font'].currentFontChanged.connect(self.set_active_font)
@@ -315,23 +326,19 @@ class Window(QMainWindow):
             self.day_stat2.reset_table()
         elif i in self.font_style:
             self.set_active_font(ty=i)
-        elif i in  self.font_align['H'].but:
-            self.set_align(i,'H')
+        elif i in self.font_align['H'].but:
+            self.set_align(i, 'H')
         elif i in self.font_align['V'].but:
             self.set_align(i, 'V')
         elif i == 'solve':
             self._solve_doc()
         elif i == 'Load':
             self.load_doc()
-            # self.solver.run_scedual()
 
-        # elif i == 'Setting Mode':
-        #     self.set_mode = ex
         elif i == 'Date Format':
             for r in self.date_list.values():
                 r.setDisplayFormat(ex)
-                # self.doc_stat.reset_table()
-                # self.day_stat.reset_table()
+
         elif i == 'Save':
 
             self._save_user_settings()
@@ -341,7 +348,7 @@ class Window(QMainWindow):
         elif i == 'Settings':
             self.run_set()
         elif i == 'Active':
-            # self.active_doc = ex
+
             self.cen.update_active(ex)
         elif i == self.wn:
             # QCalendarWidget.noVer
@@ -351,37 +358,31 @@ class Window(QMainWindow):
         elif i == "Today":
             self.cal_wig.set_today()
         elif i == "Apply":
-            self.self.apply_edits()
+            self._apply_edits()
 
         elif i == 'Cal Exp':
             self._c_exp()
         elif i == 'Email':
             self._run_email()
 
-    def set_align(self, i,di):
+    def set_align(self, i, di):
         if self.font_edit.isEnabled():
             tty = self.font_edit.currentText()
 
         else:
             tty = self.active_wig
-        self.font_ty[tty]['Align'+di] = self.align_op[di][i]
+        self.font_ty[tty]['Align' + di] = self.align_op[di][i]
 
     def _c_exp(self):
         cal = calendarEdit(self, self.sch_ls)
-        self.file_ls = cal.doc_save()  # todo user email list
+        self.file_ls = cal.doc_save()
 
     def _run_email(self):
         print(f'\n{string_break}\n Running email')
         # QIcon('icons/mail-open-table.png')
-        self.msg = QMessageBox(1, 'Email Info',
-                               'Sending Email is still a WIP:\n'
-                               'Please send documents manually')
-        self.msg.exec()
-        # self.log = login(self)
-        # self.log.show()
-
-    def run_set(self):
-        pass
+        QMessageBox.information(self, 'Email Info',
+                                'Sending Email is still a WIP:\n'
+                                'Please send documents manually')
 
     def add_doctor_pref(self):
         doc = self.combo['Active Doc'].currentText()
@@ -422,20 +423,22 @@ class Window(QMainWindow):
             else:
                 data = pd.concat((data, pd.DataFrame(df_p)))
 
-    def apply_edits(self, accept=True):
+    def _apply_edits(self):
         # assuming on main schedule for now
-        # todo widit are you sure
-        print('Apling edits')
-        self.avalible_sch.remove('Edited')
-        self.active_sch.remove('Edited')
 
-        if accept:
-            self.sch_ls['Current'] = self.sch_ls['Edited']
-            print('edit replaced')
-        else:
-            print('edits cleared')
-        del self.sch_ls['Edited']
-        # todo current schedule = new
+        accept = QMessageBox.warning(self, 'SaveInfo',
+                                     "The document has been modified.\nDo you want to save your changes?",
+                                     QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Save)
+
+        if accept != QMessageBox.Cancel:
+            print('Apling edits')
+            self.avalible_sch.remove('Edited')
+            self.active_sch.remove('Edited')
+
+            if accept == QMessageBox.Save:
+                self.sch_ls['Current'] = self.sch_ls['Edited']
+                del self.sch_ls['Edited']
+                print('edit replaced')
 
     def _dia_ax(self):
         self.val = int(self.wi.text())
@@ -485,20 +488,12 @@ class Window(QMainWindow):
         self.font_edit.setEnabled(wig == 'Cal')
         if wig == 'Cal':
             tty = self.font_edit.currentText()
-            self.active_col['Fill']= self.font_ty[tty]['Fill']
+            self.active_col['Fill'] = self.font_ty[tty]['Fill']
 
         else:
             tty = self.active_wig
         self.active_col['Color'] = self.font_ty[tty]['Color']
         # self.c
-
-    def _set_menu_bar(self):
-        self.men = QMenuBar()
-        men_op = {'File': ['Save', 'load', 'Cal Exp'],
-                  'Edit': ['Editing', 'Settingmode_s'],  # todo run next
-                  'View': self.wn}  # todo style
-        #self.men.addMenu()
-        pass
 
     def set_active_font(self, font=None, ty='Font'):
         if self.font_edit.isEnabled():
@@ -507,14 +502,14 @@ class Window(QMainWindow):
         else:
             tty = self.active_wig
 
-        if ty == 'Capital':  # todo fix
+        if ty == 'Capital':
             if font < 5:  # enum
                 self.font_ty[tty][ty] = self.cap_op[font]
         elif ty in ['Bold', 'Underline', 'Italic']:
             self.font_ty[tty][ty] = not self.font_ty[tty][ty]
         else:
             if ty in ['Color', 'Fill']:
-                self.col.setCurrentColor(self.font_ty[tty][ty])  # todo witch color
+                self.col.setCurrentColor(self.font_ty[tty][ty])
                 font = QColorDialog().getColor()
             elif ty == 'Size':
                 font = int(font)
@@ -579,6 +574,7 @@ class Window(QMainWindow):
         self.settings.endGroup()
 
         self.font_ty = {}
+        self.set_op = {'font', 'fill', 'taps open', 'tab local'}
 
         self.settings.beginGroup('font')
         for ke, v in self.font_ty_default.items():
@@ -628,14 +624,14 @@ class Window(QMainWindow):
                         f = [di, mo]
                         for i in range(2):
                             if day == 3 and i == 0:
-                                st = [f'{di}{co}d{co}{mo}',
-                                      f'{di}{co}{mo}{co}d']
+                                stir = [f'{di}{co}d{co}{mo}',
+                                        f'{di}{co}{mo}{co}d']
                             else:
-                                st = [f'{f[i]}{co}{f[(i + 1) % 2]}']
+                                stir = [f'{f[i]}{co}{f[(i + 1) % 2]}']
                             if yf == 0:
-                                j.extend(f'{y}{co}{si}' for si in st)
+                                j.extend(f'{y}{co}{si}' for si in stir)
                             else:
-                                j.extend(f'{si}{co}{y}' for si in st)
+                                j.extend(f'{si}{co}{y}' for si in stir)
 
         self.cmd_ls['Date Format'] = j
 
@@ -658,7 +654,7 @@ class Window(QMainWindow):
             self.settings.endGroup()
 
             self.settings.beginGroup('font')
-            for ke, v in self.font_ty_default.items():
+            for ke, v in self.font_ty.items():
                 self.settings.beginGroup(ke)
                 for vi in v.keys():
                     self.settings.setValue(vi, v[vi])
@@ -965,7 +961,7 @@ class DocStatus(DataFrameViewer):  # self.doc_dataframe_items
             if ind[0] == 0:
                 self.dia = docPopup(self, xy)
                 self.dia.show()
-        print('popup')  # todo add doc op
+        print('popup')
 
 
 class SideDoc(QDockWidget):
@@ -978,13 +974,13 @@ class SideDoc(QDockWidget):
         self.par.settings.beginGroup('Docks')
         self.par.settings.beginGroup(self.name)
 
-        self.par.settings.setValue('isOpen', False)  # todo to par main, read main
+        self.par.settings.setValue('isOpen', False)
         self.par.settings.setValue('Area', self.area)  # is undocked?
 
         self.par.settings.endGroup()
         self.par.settings.endGroup()
 
-        self.settings.setValue("Geometry", self.saveGeometry())  # todo do we Have?
+        self.settings.setValue("Geometry", self.saveGeometry())
         self.settings.setValue("windowState", self.saveState())
         pass
 
@@ -1070,7 +1066,7 @@ class CalendarDayDelegate(QItemDelegate):
         # self.items_ls = {'Call': '', }
         self.par = par
         self.labs = []
-        self.space = {'Current': 0.6, 'Edited': 0.3}  # todo edit offset
+        self.space = {'Current': 0.6, 'Edited': 0.3}
         self.space_ver = 0.15
         self.board_size = 1
         self.v_off = 0.4
@@ -1136,7 +1132,6 @@ class CalendarDayDelegate(QItemDelegate):
 
                     if doc != "":
                         rect2 = QRect(x0, y + self.v_space + y_off, siz, size_v)
-                        #d = self.par.par.font_ty
 
                         font, color, align = self.par.par.ret_font(i)
                         painter.setFont(font)
