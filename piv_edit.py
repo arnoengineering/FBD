@@ -31,6 +31,7 @@ def p_cent_all(x, xf):
 
 
 def group2(mi):
+    mi = mi.lower()
     def wrap(df):
         def rap(xi, ffff):
             if isinstance(xi, QDate):
@@ -42,13 +43,13 @@ def group2(mi):
         if mi == 'm':
             dfx = df['Days'].apply(lambda x: rap(x, lambda xii: xii.month()))
         elif mi == 'w':
-            dfx = df['Days'].apply(lambda x: rap(x, lambda xii: xii.weeknumber()))
+            dfx = df['Days'].apply(lambda x: rap(x, lambda xii: xii.weekNumber()[0]))
         elif mi == '2w':
-            dfx = df['Days'].apply(lambda x: rap(x, lambda xii: xii.weeknumber() % 2))
+            dfx = df['Days'].apply(lambda x: rap(x, lambda xii: xii.weekNumber()[0] % 2))
         elif mi == 'd':
             dfx = df['Days'].apply(lambda x: rap(x, lambda xii: xii.day()))
         else:
-            dfx = df['Days'].apply(lambda x: rap(x, lambda xii: xii.dayofweek()))
+            dfx = df['Days'].apply(lambda x: rap(x, lambda xii: xii.dayOfWeek()))
         # elif mi == 'gen':
         #     dfx = df['Days'].apply(lambda x: rap(x, lambda xii: xii.dayofweek()))
         return dfx
@@ -75,7 +76,7 @@ class pivotDialog(QDialog):
     def __init__(self, df, par=None):
         super().__init__()  # no acept
         self.par = par  # todo sum ave cnt
-        self.func_ls = {'mean': np.mean, 'max': np.max, 'min': np.min, 'cnt': 'count', 'sd': np.std}  # TODO RIGHTCLICK
+        self.func_ls = {'mean': np.mean, 'max': np.max, 'min': np.min, 'cnt': 'count', 'sd': np.std}
         self.setWindowTitle('Pivot Table Fields')
         self.button = QDialogButtonBox()
         self.feild_data = {}
@@ -85,31 +86,41 @@ class pivotDialog(QDialog):
         self.piv_lay = QGridLayout()
         self.v_layout = QVBoxLayout()
         self.check_lay = QVBoxLayout()
-        self.freq_op = {'month': group2('m'), 'week': 'W', '2Week': 'SM'}
+        self.group1 = ['month', 'week', '2Week']
+        self.freq_op = {'month': group2('m'), 'week': group2('W'), '2Week': group2('2w')}
         self.df = df
-
+        self.group = ['Gender', 'Categories', 'Time Per Patient']  # self.par.par.doc_data
+        for i in self.group:
+            self.freq_op[i] = self.group3(i)
         # self.retranslateUi(self)
         self.button.accepted.connect(self.accept)
         self.button.rejected.connect(self.reject)
         self._set_list_widgets()
         self._set_check_lay()
 
-    # setupUi
-    # margins
-    # sort
-    # fillters
+    def group3(self, mi):  # self.par.par.doc_data
+        mi = mi.lower()
+
+        def wrap(df):
+
+            dfx = df['Doc'].apply(lambda x: lambda xii: self.par.doc_data.loc[self.par.doc_data['Doc'] == xii, mi])
+
+            return dfx
+
+        return wrap
 
     def super_piv(self, index=None, columns=None, values=None, filt=None, aggfunc=None):
+
         print(f'super piv')
         if values is not None:
             print(f'super piv---')
             df2 = self.df.copy()
+            for row in self.freq_op.keys():
+                if any(row in x for x in [aggfunc, filt, values, columns, index] if x is not None):
+                    df2[row] = self.freq_op[row](df2)
             if filt is not None and len(filt) > 0:
                 df2 = df2.filter(filt)
-            if index is not None:
-                for row in index:
-                    if row in self.freq_op:
-                        df2[row] = self.freq_op[row](df2)  # todo add colums
+
             if columns is not None:
                 if len(columns) == 0:
                     columns = None
@@ -122,7 +133,7 @@ class pivotDialog(QDialog):
     def pivot(self):
         print('pivot')
         k = {'aggfunc': {}}
-        for f in np.array(self.item_ls).flatten():  # todo valse ave, add to list,marin, add group
+        for f in np.array(self.item_ls).flatten():
             vals = self.but_ls[f]
             if f == 'Rows':
                 print('set row')
@@ -136,10 +147,12 @@ class pivotDialog(QDialog):
                 for ite in range(vals.count()):
                     va = vals.item(ite).text()
                     if "_" in va:
-                        va, vg = va.split('_')
+                        va2 = va.split('_')
+                        va = va2[0]
+                        vg = va2[1:]
                     else:
-                        vg = 'cnt'
-                    k['aggfunc'][va] = self.func_ls[vg]  # should hold list,single
+                        vg = ['cnt']
+                    k['aggfunc'][va] = [self.func_ls[g] for g in vg]  # should hold list,single
                     k[f.lower()].append(va)
                 print('set-- val')
             else:
@@ -153,8 +166,10 @@ class pivotDialog(QDialog):
             self.bb.setText(pp)
         else:
             self.bb.setText('Good')
+            print('good')
             if self.par is not None:
-                self.par.df = pp  # todo add boders
+                print('par')
+                self.par.df = pp
                 self.par.reset_table()
 
     def _set_list_widgets(self):
@@ -182,11 +197,12 @@ class pivotDialog(QDialog):
         # self.bb.clicked.connect(self.pivot)
 
     def _set_check_lay(self):
-        self.data_col = list(self.df.columns)  # todo update and import
+        self.data_col = list(self.df.columns)
         self.fields = {}
-        if 'Date' in self.data_col:
-            # todo grouper month, week, todo anestisia, gen
-            pass
+        if 'Date' in self.data_col or 'Days' in self.data_col:
+            self.data_col.extend(self.group1)
+        if 'Doc' in self.data_col:
+            self.data_col.extend(self.group)
         for i in self.data_col:
             wi = QCheckBox(i)
 
@@ -213,9 +229,6 @@ class pivotDialog(QDialog):
     def closeEvent(self, event):
         self.par.dia_act = False
         super().closeEvent(event)
-        # todo subclass
-        # todo item droped
-        # todo __
 
 
 class PivotBlock(QListWidget):
@@ -309,7 +322,7 @@ class PivotBlock(QListWidget):
                 print('wig')
                 i = ii.text()
                 if '_' in i:
-                    i = i.split['_'][0]
+                    i = i.split('_')[0]
 
                 self.context_menu = QMenu("Context menu", self)
                 print('qmen')

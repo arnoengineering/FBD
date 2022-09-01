@@ -223,7 +223,7 @@ class DataFrameViewer(QtWidgets.QWidget):
         if df is not None:
             self.df = df
         for item in self.data_items:
-            item.setData(self.df)
+            item.set_data(self.df)
 
     def keyPressEvent(self, event):
 
@@ -493,11 +493,11 @@ class DataTableView(QtWidgets.QTableView):
 
     def data_view_ret(self):
         if self.orientation == Qt.Horizontal:
-            print('column head')
+
 
             return self.parent.columnHeader
         else:
-            print('index head')
+
             return self.parent.indexHeader
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):  # todo extra jump, todo swap while drah, other not updaing
@@ -509,7 +509,7 @@ class DataTableView(QtWidgets.QTableView):
             size = self.initial_header_size + (mouse_position - self.resize_start_position)
             if size > 10:
                 data = self.data_view_ret()
-                print(f'data: {data.__class__.__name__}, head: {self.header_being_resized}, size: {size}')
+
                 if self.orientation == Qt.Horizontal:
 
                     self.setColumnWidth(self.header_being_resized, size)
@@ -524,14 +524,12 @@ class DataTableView(QtWidgets.QTableView):
 
         # Set the cursor shape
         if self.over_header_edge(event) is not None:
-            # print('view: ', self.viewport().__class__.__name__)
-            # print(f'wig: {self.__class__.__name__}, move set curs')
-            # print('on vert,h')
+
             if self.orientation == Qt.Horizontal:
-                # print('on h')
+
                 self.viewport().setCursor(QtGui.QCursor(Qt.SplitHCursor))
             else:
-                # print('on vert')
+
                 self.viewport().setCursor(QtGui.QCursor(Qt.SplitVCursor))
         else:
 
@@ -544,16 +542,15 @@ class DataTableView(QtWidgets.QTableView):
         pos = event.pos()
         pos2 = (self.rowAt(pos.y()), self.columnAt(pos.x()))
 
-        print('df =')
-        print(self.data_model.df.head())
+
         d2 = self.data_model.df.iloc[pos2]
-        print(f'data at: {pos2}::data:{d2}')
+
         # Find which column or row edge the mouse was over and auto size it
         self.parent.set_popup(d2, True)
 
     def mousePressEvent(self, event: QtGui.QMouseEvent):
         # If mouse is on an edge, start the drag resize process
-
+        self.parent.mousePressEvent(event)
         self.pos_adj(event, self.resize_start)
         # Handle active drag resizing
 
@@ -565,12 +562,11 @@ class DataTableView(QtWidgets.QTableView):
         # print(f'Pos: ({x}, {y}), col at marg: {self.columnAt(x + margin)}, row at: {self.rowAt(y + margin)}')
         if self.columnAt(x - margin) != self.columnAt(x + margin) and self.columnAt(x + margin) != 0:
             self.orientation = Qt.Horizontal
-            # print('reached horizontal')
-            # We're at the left edge of the first column
+
             return self.columnAt(x - margin)
 
         elif self.rowAt(y - margin) != self.rowAt(y + margin) and self.rowAt(y + margin) != 0:
-            # print('vertical')
+
             self.orientation = Qt.Vertical
             return self.rowAt(y - margin)
 
@@ -929,6 +925,7 @@ class HeaderView(DataTableView):
         # Find which column or row edge the mouse was over and auto size it
         if self.pos_adj(event, self.auto_rc):
             return True
+
 
 
 # This is a fixed size widget with a size that tracks some other widget
