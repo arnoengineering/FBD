@@ -2,7 +2,7 @@
 from PyQt5.QtGui import QPainter, QPen
 from numpy import cos, sin, arctan, sqrt, pi, linspace, arange
 # import os
-from PyQt5.QtCore import Qt, QTimer, QSize  # , QPointF, QPoint
+from PyQt5.QtCore import Qt, QTimer, QSize, QSettings  # , QPointF, QPoint
 
 import pyqtgraph as pg
 import numpy as np
@@ -39,7 +39,7 @@ class HandlePlots(pg.PlotWidget):
         print('data:' , data)
         for n, i in enumerate(data):
             print('pls,', n)
-            self.plot_ls[n].set_data(i[1], i[0] * 10 ** n)
+            self.plot_ls[n].setData(i[1], i[0] * 10 ** n)
 
     def reset(self):
         # todo reset names, axis
@@ -476,6 +476,7 @@ class Window(QMainWindow):
         # todo fill rest of cam
         self.setWindowTitle('QMainWindow')
         self.full_c_v = []
+        self.settings = QSettings('cam', 'c1')
         self.curr_type = 'Const V'
         self.curr = {'beta': 10, 'H': 1, 'Type': ['Const V', 'Harmonic', 'Cycloidal', 'Const A']}
         self.typ = {'Type Motion': ['Trans', 'rot'], 'Type follow': ['needle', 'roller', 'plate']}
@@ -484,6 +485,7 @@ class Window(QMainWindow):
         self.cases = {'Roller': {'r_r': 0.1}, 'rot': {'e': 0.3, 'l': 1, 'y': 0}}
 
         # self.vst = {'Type': 'trans', 'RB':2, 'Omega':2, 'x':1,''beta': 5, 'H': 0.5}
+        self.initial_set()
         self._create_tools()
         self.cam = cam(self, **self.va)
         self.cam.main_v['Type Motion'], self.cam.main_v['Type follow'] = 'Trans', 'needle'
@@ -493,6 +495,8 @@ class Window(QMainWindow):
         self.setCentralWidget(self.cen)
         self.insert_list_wig_vals('+')
         self._set_p()
+
+        self._update_set()
 
     def _set_p(self):
         self.plot_dock = QDockWidget('Plot')
@@ -749,6 +753,47 @@ class Window(QMainWindow):
     def up(self):
         self.th += self.dt
         self.cam.rot(self.th)
+
+    def initial_set(self):
+        k = self.settings.allKeys()  # todo save other enteties, cal before or after
+        for i, j in [(self.restoreGeometry, "Geometry"), (self.restoreState, "windowState")]:
+            if j in k:
+                va = self.settings.value(j)
+                i(va)
+
+    def _save_user_settings(self):
+
+        self.user_settings()
+
+    def user_settings(self):
+        self.settings.setValue("Geometry", self.saveGeometry())
+        self.settings.setValue("windowState", self.saveState())
+
+        # self.settings.beginGroup('ActiveShift')
+        # for i in self.shifts:
+        #     self.settings.setValue(i, i in self.active_shifts)
+        # self.settings.endGroup()
+
+    def closeEvent(self, event):
+
+        self.user_settings()
+        super().closeEvent(event)
+
+    def _update_set(self):
+
+        # self.settings.beginGroup('ActiveShift')
+        # for i in self.shifts:
+        #     j = self.settings.value(i, True)
+        #     if j:
+        #         self.active_shifts.append(i)
+        # self.settings.endGroup()
+
+        # self.settings.beginGroup('File Locals')
+        # for i in self.default_files.keys():
+        #     self.default_files[i] = self.settings.value(i, self.default_files[i])
+        # self.settings.endGroup()
+
+        print(f'Finished Loading Settings\n')
 
 
 # class mainWig(QWizard):
