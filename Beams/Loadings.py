@@ -26,6 +26,35 @@ def unit(vect):
     return vect/norm(vect)
 
 
+class Vector:
+    def __init__(self, *com):  # todo if mag
+        self.vect = np.array(com)
+
+    @property
+    def x(self):
+        return self.vect[0]
+
+    @x.setter
+    def x(self, val):
+        self.vect[0] = val
+
+    @property
+    def y(self):
+        return self.vect[1]
+
+    @y.setter
+    def y(self, val):
+        self.vect[1] = val
+
+    @property
+    def z(self):
+        return self.vect[2]
+
+    @z.setter
+    def z(self, val):
+        self.vect[2] = val
+
+
 class Force:
     def __init__(self, n, pos=None):
         self.n = n
@@ -72,7 +101,7 @@ class Force:
             key = self.x_ind.index(key.lower())
         m2[key] = value  # todo hold?
 
-        
+
 
 
     def _force(self,ri):  # todo gess force
